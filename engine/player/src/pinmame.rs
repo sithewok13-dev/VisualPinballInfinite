@@ -79,6 +79,7 @@ fn vpinmame_setting(name: &str) -> Option<String> {
 
 /// Reading the registry's text values (Windows' `RegGetValueW`).
 mod registry {
+    #[cfg(windows)]
     use std::ffi::c_void;
 
     pub const HKEY_CLASSES_ROOT: isize = 0x8000_0000_u32 as i32 as isize;
@@ -87,14 +88,23 @@ mod registry {
     pub const WOW64_64: u32 = 0x0001_0000;
     pub const WOW64_32: u32 = 0x0002_0000;
     /// `RRF_RT_REG_SZ | RRF_RT_REG_EXPAND_SZ`, expanded.
+    #[cfg(windows)]
     const TEXT: u32 = 0x0000_0002 | 0x0000_0004;
 
+    #[cfg(windows)]
     #[link(name = "advapi32")]
     unsafe extern "system" {
         fn RegGetValueW(key: isize, sub_key: *const u16, value: *const u16, flags: u32, kind: *mut u32, data: *mut c_void, size: *mut u32) -> i32;
     }
 
+    /// Elsewhere there's no registry: nothing is registered.
+    #[cfg(not(windows))]
+    pub fn string(_root: isize, _key: &str, _name: Option<&str>, _view: u32) -> Option<String> {
+        None
+    }
+
     /// A text value (`name`, or the key's default), expanded; None when missing or empty.
+    #[cfg(windows)]
     pub fn string(root: isize, key: &str, name: Option<&str>, view: u32) -> Option<String> {
         let wide = |s: &str| s.encode_utf16().chain(std::iter::once(0)).collect::<Vec<u16>>();
         let (key, name) = (wide(key), name.map(wide));
@@ -1130,6 +1140,8 @@ mod tests {
         assert!(c.take(|_| true).is_empty());
     }
 
+    // through a link to the host, made only on Windows so far
+    #[cfg(windows)]
     #[test]
     fn the_machine_sound_waits_for_its_cushion_then_plays_in_order() {
         use crate::audio::StreamSource;

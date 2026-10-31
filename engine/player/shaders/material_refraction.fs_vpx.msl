@@ -1,0 +1,785 @@
+#include <metal_stdlib>
+#include <simd/simd.h>
+
+using namespace metal;
+
+struct type_VpxMaterial
+{
+    float4 cBase_Alpha;
+    float4 cGlossy_ImageLerp;
+    float4 cClearcoat_EdgeAlpha;
+    float4 Roughness_WrapL_Edge_Thickness;
+    float4 fDisableLighting_top_below;
+    float4 staticColor_Alpha;
+    float4 vpx_flags;
+    float4 mirrorNormal_factor;
+    float4 normal_map_flags;
+    float4 object_normal[3];
+};
+
+struct type_VpxScene
+{
+    float4 fenvEmissionScale_TexWidth;
+    float4 cAmbient_LightRange;
+    float4 lightPos[2];
+    float4 lightEmission[2];
+    float4 w_h_transmission;
+    float4 view_rows[3];
+};
+
+struct type_VpxRefraction
+{
+    float4x4 refraction_view_proj;
+    float4 refractionTint_thickness;
+    float4 refraction_flags;
+};
+
+struct type_BallShadows
+{
+    float4 lightCenter_doShadow;
+    float4 balls[8];
+};
+
+constant float _101 = {};
+
+struct fs_vpx_out
+{
+    float4 out_var_SV_Target0 [[color(0)]];
+};
+
+struct fs_vpx_in
+{
+    float3 in_var_TEXCOORD0 [[user(locn0)]];
+    float3 in_var_TEXCOORD1 [[user(locn1)]];
+    float2 in_var_TEXCOORD2 [[user(locn2)]];
+    float3 in_var_TEXCOORD3 [[user(locn3)]];
+};
+
+fragment fs_vpx_out fs_vpx(fs_vpx_in in [[stage_in]], constant type_VpxMaterial& VpxMaterial [[buffer(0)]], constant type_VpxScene& VpxScene [[buffer(1)]], constant type_BallShadows& BallShadows [[buffer(2)]], constant type_VpxRefraction& VpxRefraction [[buffer(3)]], texture2d<float> tex_base_color [[texture(0)]], texture2d<float> tex_env [[texture(1)]], texture2d<float> tex_diffuse_env [[texture(2)]], texture2d<float> tex_base_transmission [[texture(3)]], texture2d<float> tex_reflection [[texture(4)]], texture2d<float> tex_base_normalmap [[texture(5)]], texture2d<float> tex_refraction [[texture(6)]], texture2d<float> tex_probe_depth [[texture(7)]], sampler base_sampler [[sampler(0)]], sampler env_sampler [[sampler(1)]], sampler diffuse_env_sampler [[sampler(2)]], sampler transmission_sampler [[sampler(3)]], sampler reflection_sampler [[sampler(4)]], sampler normalmap_sampler [[sampler(5)]], sampler refraction_sampler [[sampler(6)]], sampler probe_depth_sampler [[sampler(7)]], float4 gl_FragCoord [[position]])
+{
+    fs_vpx_out out = {};
+    float4 _943;
+    do
+    {
+        bool _118 = VpxMaterial.vpx_flags.x != 0.0;
+        bool _121 = VpxMaterial.vpx_flags.y != 0.0;
+        float4 _184;
+        float3 _185;
+        float3 _186;
+        if (_121)
+        {
+            float4 _128 = tex_base_color.sample(base_sampler, in.in_var_TEXCOORD2);
+            bool _136;
+            if (VpxMaterial.vpx_flags.z > 0.0)
+            {
+                _136 = _128.w < VpxMaterial.vpx_flags.z;
+            }
+            else
+            {
+                _136 = false;
+            }
+            if (_136)
+            {
+                discard_fragment();
+            }
+            _128.w = _128.w * VpxMaterial.cBase_Alpha.w;
+            float4 _153;
+            if (VpxMaterial.fDisableLighting_top_below.x < 1.0)
+            {
+                float3 _151 = fast::clamp(_128.xyz, float3(0.0), float3(1.0));
+                _153 = float4(_151.x, _151.y, _151.z, _128.w);
+            }
+            else
+            {
+                _153 = _128;
+            }
+            float3 _157 = _153.xyz * VpxMaterial.cBase_Alpha.xyz;
+            float3 _172;
+            if (_118)
+            {
+                _172 = _157;
+            }
+            else
+            {
+                _172 = (((_153.xyz * VpxMaterial.cGlossy_ImageLerp.w) + float3(1.0 - VpxMaterial.cGlossy_ImageLerp.w)) * VpxMaterial.cGlossy_ImageLerp.xyz) * 0.07999999821186065673828125;
+            }
+            _184 = _153;
+            _185 = _172;
+            _186 = _157;
+        }
+        else
+        {
+            float3 _183;
+            if (_118)
+            {
+                _183 = VpxMaterial.cBase_Alpha.xyz;
+            }
+            else
+            {
+                _183 = VpxMaterial.cGlossy_ImageLerp.xyz * 0.07999999821186065673828125;
+            }
+            _184 = VpxMaterial.cBase_Alpha;
+            _185 = _183;
+            _186 = VpxMaterial.cBase_Alpha.xyz;
+        }
+        float3 _190 = VpxMaterial.cClearcoat_EdgeAlpha.xyz * 0.07999999821186065673828125;
+        float _196;
+        if (_118)
+        {
+            _196 = 1.0;
+        }
+        else
+        {
+            _196 = VpxMaterial.Roughness_WrapL_Edge_Thickness.z;
+        }
+        bool _205;
+        if (VpxMaterial.fDisableLighting_top_below.z != 0.0)
+        {
+            _205 = VpxMaterial.fDisableLighting_top_below.x < 1.0;
+        }
+        else
+        {
+            _205 = false;
+        }
+        if (_205)
+        {
+            _943 = float4(0.0, 0.0, 0.0, 1.0);
+            break;
+        }
+        float3 _208 = fast::normalize(in.in_var_TEXCOORD3);
+        float3 _209 = fast::normalize(in.in_var_TEXCOORD1);
+        float3 _296;
+        if ((VpxMaterial.normal_map_flags.x != 0.0) ? _121 : false)
+        {
+            float3 _295;
+            do
+            {
+                float4 _222 = tex_base_normalmap.sample(normalmap_sampler, in.in_var_TEXCOORD2);
+                float3 _225 = (_222.xyz * 2.007874011993408203125) - float3(1.007874011993408203125);
+                if (VpxMaterial.normal_map_flags.y != 0.0)
+                {
+                    _295 = fast::normalize(((VpxMaterial.object_normal[0].xyz * _225.x) + (VpxMaterial.object_normal[1].xyz * _225.y)) + (VpxMaterial.object_normal[2].xyz * (-_225.z)));
+                    break;
+                }
+                float3x3 _259 = float3x3(VpxScene.view_rows[0].xyz, VpxScene.view_rows[1].xyz, VpxScene.view_rows[2].xyz);
+                float3 _260 = _259 * (-_208);
+                float3 _261 = _259 * _209;
+                float2 _270 = float2(in.in_var_TEXCOORD2.x, -in.in_var_TEXCOORD2.y);
+                float2 _271 = dfdx(_270);
+                float2 _273 = dfdy(-_270);
+                float3 _274 = cross(_261, dfdy(-_260));
+                float3 _275 = cross(dfdx(_260), _261);
+                float3 _280 = (_274 * _271.x) + (_275 * _273.x);
+                float3 _285 = (_274 * _271.y) + (_275 * _273.y);
+                _295 = fast::normalize((_225 * float3x3(_280, _285, _261 * sqrt(precise::max(dot(_280, _280), dot(_285, _285))))) * _259);
+                break;
+            } while(false);
+            _296 = _295;
+        }
+        else
+        {
+            _296 = _209;
+        }
+        float _297 = dot(_296, _208);
+        float3 _303;
+        float _304;
+        if (_297 < 0.0)
+        {
+            _303 = -_296;
+            _304 = -_297;
+        }
+        else
+        {
+            _303 = _296;
+            _304 = _297;
+        }
+        float _305 = precise::min(_304, 1.0);
+        float _310 = precise::max(_186.x, precise::max(_186.y, _186.z));
+        float _315 = precise::max(_185.x, precise::max(_185.y, _185.z));
+        float _320 = precise::max(_190.x, precise::max(_190.y, _190.z));
+        float _321 = _310 + _315;
+        bool _328;
+        if (_321 > 1.0)
+        {
+            _328 = VpxMaterial.fDisableLighting_top_below.x < 1.0;
+        }
+        else
+        {
+            _328 = false;
+        }
+        float3 _334;
+        float3 _335;
+        if (_328)
+        {
+            float _331 = 1.0 / _321;
+            _334 = _185 * _331;
+            _335 = _186 * _331;
+        }
+        else
+        {
+            _334 = _185;
+            _335 = _186;
+        }
+        bool _336 = !_118;
+        bool _340;
+        if (_336)
+        {
+            _340 = _310 > 0.0;
+        }
+        else
+        {
+            _340 = false;
+        }
+        bool _345;
+        if (!_340)
+        {
+            _345 = _315 > 0.0;
+        }
+        else
+        {
+            _345 = true;
+        }
+        float3 _534;
+        if (_345)
+        {
+            float3 _533;
+            if (VpxMaterial.fDisableLighting_top_below.x == 1.0)
+            {
+                _533 = _335 * 2.0;
+            }
+            else
+            {
+                float _423;
+                float3 _440;
+                bool _443;
+                float3 _448;
+                do
+                {
+                    float3 _362 = VpxScene.lightPos[0].xyz - in.in_var_TEXCOORD0;
+                    float3 _363 = fast::normalize(_362);
+                    float _364 = dot(_303, _363);
+                    bool _371;
+                    if (_336)
+                    {
+                        _371 = (_364 + VpxMaterial.Roughness_WrapL_Edge_Thickness.y) > 0.0;
+                    }
+                    else
+                    {
+                        _371 = false;
+                    }
+                    float3 _381;
+                    if (_371)
+                    {
+                        float _377 = 1.0 + VpxMaterial.Roughness_WrapL_Edge_Thickness.y;
+                        _381 = _335 * ((_364 + VpxMaterial.Roughness_WrapL_Edge_Thickness.y) / (_377 * _377));
+                    }
+                    else
+                    {
+                        _381 = float3(0.0);
+                    }
+                    float3 _415;
+                    if (_364 > 0.0)
+                    {
+                        float3 _386 = fast::normalize(_363 + _208);
+                        float _387 = dot(_303, _386);
+                        float _388 = dot(_363, _386);
+                        float _389 = dot(_208, _386);
+                        bool _394;
+                        if (_387 > 0.0)
+                        {
+                            _394 = _388 > 0.0;
+                        }
+                        else
+                        {
+                            _394 = false;
+                        }
+                        bool _398;
+                        if (_394)
+                        {
+                            _398 = _389 > 0.0;
+                        }
+                        else
+                        {
+                            _398 = false;
+                        }
+                        float3 _414;
+                        if (_398)
+                        {
+                            _414 = _381 + ((_334 + ((float3(_196) - _334) * powr(1.0 - _388, 5.0))) * (((VpxMaterial.Roughness_WrapL_Edge_Thickness.x + 1.0) / (8.0 * _389)) * powr(_387, VpxMaterial.Roughness_WrapL_Edge_Thickness.x)));
+                        }
+                        else
+                        {
+                            _414 = _381;
+                        }
+                        _415 = _414;
+                    }
+                    else
+                    {
+                        _415 = _381;
+                    }
+                    float _416 = dot(_362, _362);
+                    _423 = ((VpxScene.cAmbient_LightRange.w * VpxScene.cAmbient_LightRange.w) * VpxScene.cAmbient_LightRange.w) * VpxScene.cAmbient_LightRange.w;
+                    float _426 = fast::clamp(1.0 - ((_416 * _416) / _423), 0.0, 1.0);
+                    float3 _433;
+                    if (_336)
+                    {
+                        _433 = _334 + _335;
+                    }
+                    else
+                    {
+                        _433 = _334;
+                    }
+                    _440 = VpxScene.cAmbient_LightRange.xyz;
+                    float3 _442 = ((_415 * VpxScene.lightEmission[0].xyz) * ((_426 * _426) / (_416 + 1.0))) + (_433 * _440);
+                    _443 = VpxMaterial.fDisableLighting_top_below.x != 0.0;
+                    if (_443)
+                    {
+                        _448 = mix(_442, _335, float3(VpxMaterial.fDisableLighting_top_below.x));
+                        break;
+                    }
+                    _448 = _442;
+                    break;
+                } while(false);
+                float3 _531;
+                do
+                {
+                    float3 _454 = VpxScene.lightPos[1].xyz - in.in_var_TEXCOORD0;
+                    float3 _455 = fast::normalize(_454);
+                    float _456 = dot(_303, _455);
+                    bool _463;
+                    if (_336)
+                    {
+                        _463 = (_456 + VpxMaterial.Roughness_WrapL_Edge_Thickness.y) > 0.0;
+                    }
+                    else
+                    {
+                        _463 = false;
+                    }
+                    float3 _473;
+                    if (_463)
+                    {
+                        float _469 = 1.0 + VpxMaterial.Roughness_WrapL_Edge_Thickness.y;
+                        _473 = _335 * ((_456 + VpxMaterial.Roughness_WrapL_Edge_Thickness.y) / (_469 * _469));
+                    }
+                    else
+                    {
+                        _473 = float3(0.0);
+                    }
+                    float3 _507;
+                    if (_456 > 0.0)
+                    {
+                        float3 _478 = fast::normalize(_455 + _208);
+                        float _479 = dot(_303, _478);
+                        float _480 = dot(_455, _478);
+                        float _481 = dot(_208, _478);
+                        bool _486;
+                        if (_479 > 0.0)
+                        {
+                            _486 = _480 > 0.0;
+                        }
+                        else
+                        {
+                            _486 = false;
+                        }
+                        bool _490;
+                        if (_486)
+                        {
+                            _490 = _481 > 0.0;
+                        }
+                        else
+                        {
+                            _490 = false;
+                        }
+                        float3 _506;
+                        if (_490)
+                        {
+                            _506 = _473 + ((_334 + ((float3(_196) - _334) * powr(1.0 - _480, 5.0))) * (((VpxMaterial.Roughness_WrapL_Edge_Thickness.x + 1.0) / (8.0 * _481)) * powr(_479, VpxMaterial.Roughness_WrapL_Edge_Thickness.x)));
+                        }
+                        else
+                        {
+                            _506 = _473;
+                        }
+                        _507 = _506;
+                    }
+                    else
+                    {
+                        _507 = _473;
+                    }
+                    float _508 = dot(_454, _454);
+                    float _512 = fast::clamp(1.0 - ((_508 * _508) / _423), 0.0, 1.0);
+                    float3 _519;
+                    if (_336)
+                    {
+                        _519 = _334 + _335;
+                    }
+                    else
+                    {
+                        _519 = _334;
+                    }
+                    float3 _526 = ((_507 * VpxScene.lightEmission[1].xyz) * ((_512 * _512) / (_508 + 1.0))) + (_519 * _440);
+                    if (_443)
+                    {
+                        _531 = mix(_526, _335, float3(VpxMaterial.fDisableLighting_top_below.x));
+                        break;
+                    }
+                    _531 = _526;
+                    break;
+                } while(false);
+                _533 = _448 + _531;
+            }
+            _534 = _533;
+        }
+        else
+        {
+            _534 = float3(0.0);
+        }
+        bool _538;
+        if (_336)
+        {
+            _538 = _310 > 0.0;
+        }
+        else
+        {
+            _538 = false;
+        }
+        float3 _609;
+        if (_538)
+        {
+            float _577;
+            do
+            {
+                float _547 = abs(_303.y);
+                float _548 = abs(_303.x);
+                bool _553;
+                if (_548 <= 6.103515625e-05)
+                {
+                    _553 = _547 <= 6.103515625e-05;
+                }
+                else
+                {
+                    _553 = false;
+                }
+                if (_553)
+                {
+                    _577 = 0.0;
+                    break;
+                }
+                float _558 = (_548 - _547) / (_548 + _547);
+                bool _559 = _303.x < 0.0;
+                float _568;
+                if (_559)
+                {
+                    _568 = -_558;
+                }
+                else
+                {
+                    _568 = _558;
+                }
+                float _570 = (_559 ? 0.375 : 0.125) + ((((0.033719837665557861328125 * _558) * _558) - 0.157134473323822021484375) * _568);
+                float _576;
+                if (_303.y < 0.0)
+                {
+                    _576 = -_570;
+                }
+                else
+                {
+                    _576 = _570;
+                }
+                _577 = _576;
+                break;
+            } while(false);
+            float _599;
+            do
+            {
+                float _582 = abs(_303.z);
+                float _583 = 1.0 - _582;
+                if (_583 <= 6.103515625e-05)
+                {
+                    _599 = (_303.z >= 0.0) ? 0.0 : 1.0;
+                    break;
+                }
+                float _592 = (((-0.049647428095340728759765625) * _582) + 0.498049914836883544921875) * sqrt(_583);
+                float _598;
+                if (_303.z >= 0.0)
+                {
+                    _598 = _592;
+                }
+                else
+                {
+                    _598 = 1.0 - _592;
+                }
+                _599 = _598;
+                break;
+            } while(false);
+            _609 = _534 + ((_335 * tex_diffuse_env.sample(diffuse_env_sampler, float2(0.5 + _577, _599), level(0.0)).xyz) * VpxScene.fenvEmissionScale_TexWidth.x);
+        }
+        else
+        {
+            _609 = _534;
+        }
+        bool _614;
+        if ((isunordered(_315, 0.0) || _315 <= 0.0))
+        {
+            _614 = _320 > 0.0;
+        }
+        else
+        {
+            _614 = true;
+        }
+        float3 _726;
+        if (_614)
+        {
+            float3 _619 = (_303 * (2.0 * _305)) - _208;
+            float _620 = _619.y;
+            float _621 = _619.x;
+            float _654;
+            do
+            {
+                float _624 = abs(_620);
+                float _625 = abs(_621);
+                bool _630;
+                if (_625 <= 6.103515625e-05)
+                {
+                    _630 = _624 <= 6.103515625e-05;
+                }
+                else
+                {
+                    _630 = false;
+                }
+                if (_630)
+                {
+                    _654 = 0.0;
+                    break;
+                }
+                float _635 = (_625 - _624) / (_625 + _624);
+                bool _636 = _621 < 0.0;
+                float _645;
+                if (_636)
+                {
+                    _645 = -_635;
+                }
+                else
+                {
+                    _645 = _635;
+                }
+                float _647 = (_636 ? 0.375 : 0.125) + ((((0.033719837665557861328125 * _635) * _635) - 0.157134473323822021484375) * _645);
+                float _653;
+                if (_620 < 0.0)
+                {
+                    _653 = -_647;
+                }
+                else
+                {
+                    _653 = _647;
+                }
+                _654 = _653;
+                break;
+            } while(false);
+            float _656 = _619.z;
+            float _676;
+            do
+            {
+                float _659 = abs(_656);
+                float _660 = 1.0 - _659;
+                if (_660 <= 6.103515625e-05)
+                {
+                    _676 = (_656 >= 0.0) ? 0.0 : 1.0;
+                    break;
+                }
+                float _669 = (((-0.049647428095340728759765625) * _659) + 0.498049914836883544921875) * sqrt(_660);
+                float _675;
+                if (_656 >= 0.0)
+                {
+                    _675 = _669;
+                }
+                else
+                {
+                    _675 = 1.0 - _669;
+                }
+                _676 = _675;
+                break;
+            } while(false);
+            float2 _677 = float2(0.5 + _654, _676);
+            float3 _704;
+            if (_315 > 0.0)
+            {
+                _704 = _609 + ((_334 * tex_env.sample(env_sampler, _677, level(precise::min(log2(VpxScene.fenvEmissionScale_TexWidth.y * 1.73205077648162841796875) - (0.5 * log2(VpxMaterial.Roughness_WrapL_Edge_Thickness.x + 1.0)), log2(VpxScene.fenvEmissionScale_TexWidth.y) - 1.0))).xyz) * VpxScene.fenvEmissionScale_TexWidth.x);
+            }
+            else
+            {
+                _704 = _609;
+            }
+            float3 _725;
+            if (_320 > 0.0)
+            {
+                _725 = mix(_704, tex_env.sample(env_sampler, _677, level(0.0)).xyz * VpxScene.fenvEmissionScale_TexWidth.x, _190 + ((float3(VpxMaterial.Roughness_WrapL_Edge_Thickness.z) - _190) * powr(1.0 - _305, 5.0)));
+            }
+            else
+            {
+                _725 = _704;
+            }
+            _726 = _725;
+        }
+        else
+        {
+            _726 = _609;
+        }
+        float4 _731 = float4(_726, _184.w);
+        float4 _778;
+        if (_184.w < 1.0)
+        {
+            float _739 = abs(_297);
+            float _746 = mix(_184.w, 1.0, VpxMaterial.cClearcoat_EdgeAlpha.w * (1.0 - (_739 / ((_739 * (1.0 - VpxMaterial.Roughness_WrapL_Edge_Thickness.w)) + VpxMaterial.Roughness_WrapL_Edge_Thickness.w))));
+            float4 _747 = _731;
+            _747.w = _746;
+            bool _756;
+            if (VpxMaterial.fDisableLighting_top_below.y < 1.0)
+            {
+                _756 = VpxScene.w_h_transmission.z != 0.0;
+            }
+            else
+            {
+                _756 = false;
+            }
+            float4 _777;
+            if (_756)
+            {
+                float3 _775 = _747.xyz + mix((sqrt(_186) * tex_base_transmission.sample(transmission_sampler, (gl_FragCoord.xy * VpxScene.w_h_transmission.xy), level(0.0)).xyz) * _746, float3(0.0), float3(VpxMaterial.fDisableLighting_top_below.y));
+                _777 = float4(_775.x, _775.y, _775.z, _747.w);
+            }
+            else
+            {
+                _777 = _747;
+            }
+            _778 = _777;
+        }
+        else
+        {
+            _778 = _731;
+        }
+        float _846;
+        do
+        {
+            if (BallShadows.lightCenter_doShadow.w == 0.0)
+            {
+                _846 = 1.0;
+                break;
+            }
+            float3 _789 = in.in_var_TEXCOORD0 - BallShadows.lightCenter_doShadow.xyz;
+            float _790 = length(_789);
+            float _845;
+            do
+            {
+                float _794;
+                _794 = 1.0;
+                float _795;
+                float _842;
+                bool _843;
+                int _797 = 0;
+                for (;;)
+                {
+                    if (_797 < 8)
+                    {
+                        if (BallShadows.balls[_797].w == 0.0)
+                        {
+                            _842 = _794;
+                            _843 = true;
+                            break;
+                        }
+                        float3 _810 = BallShadows.balls[_797].xyz - BallShadows.lightCenter_doShadow.xyz;
+                        float _813 = dot(_810, _789) / (_790 * _790);
+                        bool _818;
+                        if (_813 > 0.0)
+                        {
+                            _818 = _813 < 1.0;
+                        }
+                        else
+                        {
+                            _818 = false;
+                        }
+                        if (_818)
+                        {
+                            float _825 = 5.0 - (5.0 * _813);
+                            float _826 = _810.x;
+                            float _828 = _810.y;
+                            _795 = _794 * (1.0 + (fast::clamp(((_826 * _826) + (_828 * _828)) / (BallShadows.balls[_797].w * BallShadows.balls[_797].w), 0.0, 1.0) * ((-0.89999997615814208984375) + (0.89999997615814208984375 * smoothstep(BallShadows.balls[_797].w - _825, BallShadows.balls[_797].w + _825, length(_810 - (_789 * _813)))))));
+                        }
+                        else
+                        {
+                            _795 = _794;
+                        }
+                        _794 = _795;
+                        _797++;
+                        continue;
+                    }
+                    else
+                    {
+                        _842 = _101;
+                        _843 = false;
+                        break;
+                    }
+                }
+                if (_843)
+                {
+                    _845 = _842;
+                    break;
+                }
+                _845 = _794;
+                break;
+            } while(false);
+            _846 = _845;
+            break;
+        } while(false);
+        float3 _848 = _778.xyz * _846;
+        float4 _876;
+        if (VpxMaterial.mirrorNormal_factor.w > 0.0)
+        {
+            float3 _874 = _848.xyz + (tex_reflection.sample(reflection_sampler, ((gl_FragCoord.xy + float2(0.5)) * VpxScene.w_h_transmission.xy)).xyz * (smoothstep(0.5, 0.89999997615814208984375, dot(VpxMaterial.mirrorNormal_factor.xyz, _296)) * VpxMaterial.mirrorNormal_factor.w));
+            _876 = float4(_874.x, _874.y, _874.z, _778.w);
+        }
+        else
+        {
+            _876 = float4(_848.x, _848.y, _848.z, _778.w);
+        }
+        float4 _889 = VpxRefraction.refraction_view_proj * float4(in.in_var_TEXCOORD0 + (refract(_208, _296, 0.666666686534881591796875) * VpxRefraction.refractionTint_thickness.w), 1.0);
+        float2 _897 = float2(0.5) + (float2(_889.x, -_889.y) * (0.5 / _889.w));
+        bool _910;
+        if (VpxRefraction.refraction_flags.x == 0.0)
+        {
+            _910 = tex_probe_depth.sample(probe_depth_sampler, _897, level(0.0)).x < gl_FragCoord.z;
+        }
+        else
+        {
+            _910 = false;
+        }
+        float2 _918;
+        if (_910)
+        {
+            _918 = gl_FragCoord.xy * VpxScene.w_h_transmission.xy;
+        }
+        else
+        {
+            _918 = _897;
+        }
+        float3 _930 = mix(VpxRefraction.refractionTint_thickness.xyz * tex_refraction.sample(refraction_sampler, _918, level(0.0)).xyz, _876.xyz, float3(_876.w));
+        float4 _931 = float4(_930.x, _930.y, _930.z, _876.w);
+        _931.w = 1.0;
+        float4 _935 = _931 * VpxMaterial.staticColor_Alpha;
+        float4 _942;
+        if (VpxMaterial.vpx_flags.w > 0.5)
+        {
+            float4 _941 = _935;
+            _941.w = 1.0;
+            _942 = _941;
+        }
+        else
+        {
+            _942 = _935;
+        }
+        _943 = _942;
+        break;
+    } while(false);
+    out.out_var_SV_Target0 = _943;
+    return out;
+}
+

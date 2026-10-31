@@ -11,12 +11,14 @@
 
 use std::collections::VecDeque;
 use std::ffi::c_void;
+#[cfg(windows)]
 use std::ptr::null_mut;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use sdl3_sys::everything::{SDL_DelayPrecise, SDL_GetTicksNS};
 
+#[cfg(windows)]
 #[repr(C)]
 struct Guid {
     data1: u32,
@@ -25,9 +27,11 @@ struct Guid {
     data4: [u8; 8],
 }
 
+#[cfg(windows)]
 /// `IID_IDXGIFactory1`.
 const IID_IDXGI_FACTORY1: Guid = Guid { data1: 0x770A_AE78, data2: 0xF26F, data3: 0x4DBA, data4: [0xA8, 0x29, 0x25, 0x3C, 0x83, 0xD1, 0xB3, 0x87] };
 
+#[cfg(windows)]
 #[repr(C)]
 struct Rect {
     left: i32,
@@ -36,6 +40,7 @@ struct Rect {
     bottom: i32,
 }
 
+#[cfg(windows)]
 /// `DXGI_OUTPUT_DESC`.
 #[repr(C)]
 struct OutputDesc {
@@ -46,32 +51,43 @@ struct OutputDesc {
     monitor: *mut c_void,
 }
 
+#[cfg(windows)]
 #[link(name = "dxgi")]
 unsafe extern "system" {
     fn CreateDXGIFactory1(riid: *const Guid, factory: *mut *mut c_void) -> i32;
 }
 
+#[cfg(windows)]
 #[link(name = "user32")]
 unsafe extern "system" {
     fn MonitorFromWindow(hwnd: *mut c_void, flags: u32) -> *mut c_void;
 }
 
+#[cfg(windows)]
 #[link(name = "kernel32")]
 unsafe extern "system" {
     fn GetCurrentThread() -> *mut c_void;
     fn SetThreadPriority(thread: *mut c_void, priority: i32) -> i32;
 }
 
+#[cfg(windows)]
 const MONITOR_DEFAULTTONEAREST: u32 = 2;
+#[cfg(windows)]
 const THREAD_PRIORITY_HIGHEST: i32 = 2;
 
 // entries of the DXGI interfaces' tables (dxgi.h's order)
+#[cfg(windows)]
 const RELEASE: usize = 2;
+#[cfg(windows)]
 const FACTORY1_ENUM_ADAPTERS1: usize = 12;
+#[cfg(windows)]
 const ADAPTER_ENUM_OUTPUTS: usize = 7;
+#[cfg(windows)]
 const OUTPUT_GET_DESC: usize = 7;
+#[cfg(windows)]
 const OUTPUT_WAIT_FOR_VBLANK: usize = 10;
 
+#[cfg(windows)]
 /// Entry `n` of a COM object's table.
 ///
 /// # Safety
@@ -80,6 +96,7 @@ unsafe fn entry(obj: *mut c_void, n: usize) -> usize {
     unsafe { *(*(obj as *const *const usize)).add(n) }
 }
 
+#[cfg(windows)]
 /// # Safety
 /// `obj` must be a live COM object.
 unsafe fn release(obj: *mut c_void) {
@@ -89,6 +106,7 @@ unsafe fn release(obj: *mut c_void) {
     }
 }
 
+#[cfg(windows)]
 /// The DXGI output (screen) that shows `hwnd`, with a reference held.
 fn output_for(hwnd: *mut c_void) -> Option<*mut c_void> {
     unsafe {
@@ -147,6 +165,7 @@ impl VBlank {
     /// Starts following the refreshes of the screen showing `hwnd`;
     /// `refresh_hz` is the screen's rate, as a first guess of their spacing.
     /// None when Windows can't say which screen that is.
+    #[cfg(windows)]
     pub fn start(hwnd: *mut c_void, refresh_hz: f32) -> Option<VBlank> {
         if hwnd.is_null() {
             return None;
@@ -192,6 +211,12 @@ impl VBlank {
             })
             .ok()?;
         Some(VBlank { shared, thread: Some(thread) })
+    }
+
+    /// Elsewhere, not yet: None, and the player presents with plain vsync.
+    #[cfg(not(windows))]
+    pub fn start(_hwnd: *mut c_void, _refresh_hz: f32) -> Option<VBlank> {
+        None
     }
 
     /// The next refresh after `now_ns`, and the time between refreshes;

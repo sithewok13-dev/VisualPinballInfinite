@@ -1,0 +1,630 @@
+#include <metal_stdlib>
+#include <simd/simd.h>
+
+using namespace metal;
+
+struct type_Tonemap
+{
+    float4 tonemap_exposure_mapper;
+    float4 tonemap_flags;
+    float4 tonemap_frame;
+    float4 tonemap_ao_info;
+    float4 tonemap_hdr;
+    float4 tonemap_spline1;
+    float4 tonemap_spline2;
+};
+
+struct tonemap_fs_out
+{
+    float4 out_var_SV_Target0 [[color(0)]];
+};
+
+fragment tonemap_fs_out tonemap_fs(constant type_Tonemap& Tonemap [[buffer(0)]], texture2d<float> tonemap_picture [[texture(0)]], texture2d<float> tonemap_lut [[texture(1)]], texture2d<float> tonemap_bloom [[texture(2)]], texture2d<float> tonemap_ao [[texture(3)]], sampler tonemap_picture_sampler [[sampler(0)]], sampler tonemap_lut_sampler [[sampler(1)]], sampler tonemap_bloom_sampler [[sampler(2)]], sampler tonemap_ao_sampler [[sampler(3)]], float4 gl_FragCoord [[position]])
+{
+    tonemap_fs_out out = {};
+    float4 _1005;
+    do
+    {
+        float2 _196 = (gl_FragCoord.xy - Tonemap.tonemap_exposure_mapper.zw) * Tonemap.tonemap_frame.yz;
+        bool _205;
+        if (!any(Tonemap.tonemap_exposure_mapper.zw != float2(0.0)))
+        {
+            _205 = Tonemap.tonemap_frame.w != 0.0;
+        }
+        else
+        {
+            _205 = true;
+        }
+        float4 _230;
+        if (_205)
+        {
+            bool _215;
+            if (all(_196 >= float2(0.0)))
+            {
+                _215 = all(_196 <= float2(1.0));
+            }
+            else
+            {
+                _215 = false;
+            }
+            float4 _223;
+            if (_215)
+            {
+                _223 = tonemap_picture.sample(tonemap_picture_sampler, _196, level(0.0));
+            }
+            else
+            {
+                _223 = float4(0.0);
+            }
+            _230 = _223;
+        }
+        else
+        {
+            _230 = tonemap_picture.read(uint2(int3(int2(gl_FragCoord.xy), 0).xy), 0);
+        }
+        float3 _248;
+        if (Tonemap.tonemap_ao_info.x != 0.0)
+        {
+            _248 = _230.xyz * tonemap_ao.sample(tonemap_ao_sampler, (_196 - (Tonemap.tonemap_ao_info.yz * 0.5)), level(0.0)).x;
+        }
+        else
+        {
+            _248 = _230.xyz;
+        }
+        float3 _260;
+        if (Tonemap.tonemap_flags.w != 0.0)
+        {
+            _260 = _248 + tonemap_bloom.sample(tonemap_bloom_sampler, _196, level(0.0)).xyz;
+        }
+        else
+        {
+            _260 = _248;
+        }
+        float3 _263 = _260 * Tonemap.tonemap_exposure_mapper.x;
+        bool _266 = Tonemap.tonemap_hdr.x != 0.0;
+        float3 _272;
+        if (_266)
+        {
+            _272 = _263 * Tonemap.tonemap_hdr.y;
+        }
+        else
+        {
+            _272 = _263;
+        }
+        bool _278;
+        if (_266)
+        {
+            _278 = Tonemap.tonemap_hdr.w != 0.0;
+        }
+        else
+        {
+            _278 = false;
+        }
+        bool _281 = !_278;
+        bool _294;
+        if (_281)
+        {
+            bool _288;
+            if (Tonemap.tonemap_exposure_mapper.y != 1.0)
+            {
+                _288 = Tonemap.tonemap_exposure_mapper.y == 2.0;
+            }
+            else
+            {
+                _288 = true;
+            }
+            bool _293;
+            if (!_288)
+            {
+                _293 = Tonemap.tonemap_exposure_mapper.y == 4.0;
+            }
+            else
+            {
+                _293 = true;
+            }
+            _294 = _293;
+        }
+        else
+        {
+            _294 = false;
+        }
+        float3 _484;
+        if (_230.w > 0.0)
+        {
+            float3 _450;
+            if (_278)
+            {
+                float3 _306 = _272 / float3(Tonemap.tonemap_hdr.y);
+                float _307 = dot(_306, float3(0.2626999914646148681640625, 0.677999973297119140625, 0.0593000017106533050537109375));
+                float3 _342;
+                if (_307 >= 6.103515625e-05)
+                {
+                    float _313 = _307 - Tonemap.tonemap_spline1.x;
+                    float _336;
+                    if (_313 > 0.0)
+                    {
+                        _336 = ((((Tonemap.tonemap_spline2.x * _313) + Tonemap.tonemap_spline2.y) * _313) + Tonemap.tonemap_spline1.z) * _313;
+                    }
+                    else
+                    {
+                        _336 = ((Tonemap.tonemap_spline1.w * _313) + Tonemap.tonemap_spline1.z) * _313;
+                    }
+                    _342 = _306 * ((_336 + Tonemap.tonemap_spline1.y) / _307);
+                }
+                else
+                {
+                    _342 = _306;
+                }
+                _450 = _342 * Tonemap.tonemap_hdr.y;
+            }
+            else
+            {
+                float3 _449;
+                if (Tonemap.tonemap_exposure_mapper.y == 0.0)
+                {
+                    float _349 = precise::min(dot(_272, float3(0.1762039959430694580078125, 0.812985002994537353515625, 0.010810899548232555389404296875)), 1000.0);
+                    _449 = _272 * (((_349 * 0.25) + 1.0) / (_349 + 1.0));
+                }
+                else
+                {
+                    float3 _448;
+                    if (Tonemap.tonemap_exposure_mapper.y == 2.0)
+                    {
+                        float3 _361 = precise::max(float3(0.0), precise::min(_272, float3(1000.0)) - float3(0.0040000001899898052215576171875));
+                        float3 _362 = _361 * 6.19999980926513671875;
+                        _448 = (_361 * (_362 + float3(0.5))) / ((_361 * (_362 + float3(1.7000000476837158203125))) + float3(0.0599999986588954925537109375));
+                    }
+                    else
+                    {
+                        float3 _447;
+                        if (Tonemap.tonemap_exposure_mapper.y == 3.0)
+                        {
+                            float3 _411;
+                            do
+                            {
+                                float _379 = precise::min(_272.x, precise::min(_272.y, _272.z));
+                                float _387;
+                                if (_379 < 0.07999999821186065673828125)
+                                {
+                                    _387 = _379 - (6.25 * (_379 * _379));
+                                }
+                                else
+                                {
+                                    _387 = 0.039999999105930328369140625;
+                                }
+                                float3 _389 = _272 - float3(_387);
+                                float _394 = precise::max(_389.x, precise::max(_389.y, _389.z));
+                                if (_394 < 0.7599999904632568359375)
+                                {
+                                    _411 = _389;
+                                    break;
+                                }
+                                float _400 = 1.0 - (0.0576000027358531951904296875 / (_394 + (-0.519999980926513671875)));
+                                float _403 = (0.1500000059604644775390625 * (_394 - _400)) + 1.0;
+                                _411 = float3(_400 - (_400 / _403)) + (_389 * (_400 / (_403 * _394)));
+                                break;
+                            } while(false);
+                            _447 = _411;
+                        }
+                        else
+                        {
+                            float3 _418 = fast::clamp((log2(precise::max(float3x3(float3(0.842479050159454345703125, 0.0423282422125339508056640625, 0.0423756539821624755859375), float3(0.0784336030483245849609375, 0.87846863269805908203125, 0.0784336030483245849609375), float3(0.079223744571208953857421875, 0.07916612923145294189453125, 0.8791429996490478515625)) * _272, float3(6.103515625e-05))) - float3(-12.47393035888671875)) * float3(0.060606062412261962890625), float3(0.0), float3(1.0));
+                            float3 _419 = _418 * _418;
+                            float3 _420 = _419 * _419;
+                            float3 _435 = (((((((_420 * 15.5) * _419) - ((_420 * 40.1399993896484375) * _418)) + (_420 * 31.95999908447265625)) - ((_419 * 6.868000030517578125) * _418)) + (_419 * 0.4298000037670135498046875)) + (_418 * 0.119099996984004974365234375)) - float3(0.002319999970495700836181640625);
+                            float3 _445;
+                            if (Tonemap.tonemap_exposure_mapper.y == 4.0)
+                            {
+                                float3 _441 = float3(dot(_435, float3(0.2125999927520751953125, 0.715200006961822509765625, 0.072200000286102294921875)));
+                                _445 = _441 + ((powr(precise::max(_435, float3(0.0)), float3(1.35000002384185791015625)) - _441) * 1.39999997615814208984375);
+                            }
+                            else
+                            {
+                                _445 = _435;
+                            }
+                            _447 = float3x3(float3(1.19687902927398681640625, -0.0528968535363674163818359375, -0.0529716350138187408447265625), float3(-0.0980208814144134521484375, 1.1519031524658203125, -0.098043449223041534423828125), float3(-0.099029742181301116943359375, -0.098961174488067626953125, 1.1510736942291259765625)) * _445;
+                        }
+                        _448 = _447;
+                    }
+                    _449 = _448;
+                }
+                _450 = _449;
+            }
+            _484 = _450;
+        }
+        else
+        {
+            float3 _483;
+            if (_294)
+            {
+                float3 _453 = _272 * 12.9200000762939453125;
+                float3 _457 = (powr(precise::max(_272, float3(0.0)), float3(0.4166666567325592041015625)) * 1.05499994754791259765625) - float3(0.054999999701976776123046875);
+                float _465;
+                if (_272.x <= 0.003130800090730190277099609375)
+                {
+                    _465 = _453.x;
+                }
+                else
+                {
+                    _465 = _457.x;
+                }
+                float _473;
+                if (_272.y <= 0.003130800090730190277099609375)
+                {
+                    _473 = _453.y;
+                }
+                else
+                {
+                    _473 = _457.y;
+                }
+                float _481;
+                if (_272.z <= 0.003130800090730190277099609375)
+                {
+                    _481 = _453.z;
+                }
+                else
+                {
+                    _481 = _457.z;
+                }
+                _483 = float3(_465, _473, _481);
+            }
+            else
+            {
+                _483 = _272;
+            }
+            _484 = _483;
+        }
+        if (_266)
+        {
+            float3 _598;
+            if (Tonemap.tonemap_flags.y != 0.0)
+            {
+                bool _492 = !_294;
+                float3 _525;
+                if (_492)
+                {
+                    float3 _495 = _484 * 12.9200000762939453125;
+                    float3 _499 = (powr(precise::max(_484, float3(0.0)), float3(0.4166666567325592041015625)) * 1.05499994754791259765625) - float3(0.054999999701976776123046875);
+                    float _507;
+                    if (_484.x <= 0.003130800090730190277099609375)
+                    {
+                        _507 = _495.x;
+                    }
+                    else
+                    {
+                        _507 = _499.x;
+                    }
+                    float _515;
+                    if (_484.y <= 0.003130800090730190277099609375)
+                    {
+                        _515 = _495.y;
+                    }
+                    else
+                    {
+                        _515 = _499.y;
+                    }
+                    float _523;
+                    if (_484.z <= 0.003130800090730190277099609375)
+                    {
+                        _523 = _495.z;
+                    }
+                    else
+                    {
+                        _523 = _499.z;
+                    }
+                    _525 = float3(_507, _515, _523);
+                }
+                else
+                {
+                    _525 = _484;
+                }
+                float3 _530 = fast::clamp(_525 / float3(Tonemap.tonemap_hdr.y), float3(9.9999997473787516355514526367188e-05), float3(1.0));
+                float3 _562;
+                do
+                {
+                    if (Tonemap.tonemap_flags.y == 0.0)
+                    {
+                        _562 = _530;
+                        break;
+                    }
+                    float2 _538 = (_530.xy * 0.9375) + float2(0.03125);
+                    float _540 = _530.z * 15.0;
+                    float _544 = (_538.x + floor(_540)) * 0.0625;
+                    float _547 = _538.y;
+                    _562 = mix(tonemap_lut.sample(tonemap_lut_sampler, float2(_544, _547), level(0.0)).xyz, tonemap_lut.sample(tonemap_lut_sampler, float2(_544 + 0.0625, _547), level(0.0)).xyz, float3(fract(_540)));
+                    break;
+                } while(false);
+                float3 _564 = _525 * (_562 / _530);
+                float3 _597;
+                if (_492)
+                {
+                    float3 _567 = _564 * 0.077399380505084991455078125;
+                    float3 _571 = powr(precise::max((_564 * 0.94786727428436279296875) + float3(0.0521326996386051177978515625), float3(0.0)), float3(2.400000095367431640625));
+                    float _579;
+                    if (_564.x <= 0.040449999272823333740234375)
+                    {
+                        _579 = _567.x;
+                    }
+                    else
+                    {
+                        _579 = _571.x;
+                    }
+                    float _587;
+                    if (_564.y <= 0.040449999272823333740234375)
+                    {
+                        _587 = _567.y;
+                    }
+                    else
+                    {
+                        _587 = _571.y;
+                    }
+                    float _595;
+                    if (_564.z <= 0.040449999272823333740234375)
+                    {
+                        _595 = _567.z;
+                    }
+                    else
+                    {
+                        _595 = _571.z;
+                    }
+                    _597 = float3(_579, _587, _595);
+                }
+                else
+                {
+                    _597 = _564;
+                }
+                _598 = _597;
+            }
+            else
+            {
+                _598 = _484;
+            }
+            float3 _631;
+            if (_294)
+            {
+                float3 _601 = _598 * 0.077399380505084991455078125;
+                float3 _605 = powr(precise::max((_598 * 0.94786727428436279296875) + float3(0.0521326996386051177978515625), float3(0.0)), float3(2.400000095367431640625));
+                float _613;
+                if (_598.x <= 0.040449999272823333740234375)
+                {
+                    _613 = _601.x;
+                }
+                else
+                {
+                    _613 = _605.x;
+                }
+                float _621;
+                if (_598.y <= 0.040449999272823333740234375)
+                {
+                    _621 = _601.y;
+                }
+                else
+                {
+                    _621 = _605.y;
+                }
+                float _629;
+                if (_598.z <= 0.040449999272823333740234375)
+                {
+                    _629 = _601.z;
+                }
+                else
+                {
+                    _629 = _605.z;
+                }
+                _631 = float3(_613, _621, _629);
+            }
+            else
+            {
+                _631 = _598;
+            }
+            float3 _635;
+            if (_281)
+            {
+                _635 = fast::clamp(_631, float3(0.0), float3(1.0));
+            }
+            else
+            {
+                _635 = _631;
+            }
+            float3 _641 = powr(precise::max(float3x3(float3(0.627399981021881103515625, 0.069099999964237213134765625, 0.01640000008046627044677734375), float3(0.329299986362457275390625, 0.91949999332427978515625, 0.087999999523162841796875), float3(0.0432999990880489349365234375, 0.011300000362098217010498046875, 0.895600020885467529296875)) * (_635 * Tonemap.tonemap_hdr.z), float3(0.0)), float3(0.1593017578125));
+            _1005 = float4(powr((float3(0.8359375) + (_641 * 18.8515625)) / (float3(1.0) + (_641 * 18.6875)), float3(78.84375)), 1.0);
+            break;
+        }
+        float3 _929;
+        if (_294)
+        {
+            float3 _732;
+            do
+            {
+                if (Tonemap.tonemap_flags.x == 0.0)
+                {
+                    _732 = _484;
+                    break;
+                }
+                uint2 _662 = uint2(gl_FragCoord.xy);
+                uint _667 = uint(Tonemap.tonemap_frame.x);
+                uint _670 = (_667 ^ (_667 >> 16u)) * 2146121005u;
+                uint _673 = (_670 ^ (_670 >> 15u)) * 2221713035u;
+                uint _676 = _662.y + (_673 ^ (_673 >> 16u));
+                uint _679 = (_676 ^ (_676 >> 16u)) * 2146121005u;
+                uint _682 = (_679 ^ (_679 >> 15u)) * 2221713035u;
+                uint _685 = _662.x + (_682 ^ (_682 >> 16u));
+                uint _688 = (_685 ^ (_685 >> 16u)) * 2146121005u;
+                uint _691 = (_688 ^ (_688 >> 15u)) * 2221713035u;
+                uint _693 = _691 ^ (_691 >> 16u);
+                uint _694 = _693 >> 16u;
+                uint _696 = (_693 ^ _694) * 2146121005u;
+                uint _699 = (_696 ^ (_696 >> 15u)) * 2221713035u;
+                uint _701 = _699 ^ (_699 >> 16u);
+                uint _702 = _701 >> 16u;
+                uint _704 = (_701 ^ _702) * 2146121005u;
+                uint _707 = (_704 ^ (_704 >> 15u)) * 2221713035u;
+                uint _709 = _707 ^ (_707 >> 16u);
+                _732 = _484 + (float3((1.52587890625e-05 * (float(_693 & 65535u) + float(_694))) - 1.0, (1.52587890625e-05 * (float(_701 & 65535u) + float(_702))) - 1.0, (1.52587890625e-05 * (float(_709 & 65535u) + float(_709 >> 16u))) - 1.0) * 0.00294117652811110019683837890625);
+                break;
+            } while(false);
+            _929 = fast::clamp(_732, float3(0.0), float3(1.0));
+        }
+        else
+        {
+            float3 _928;
+            if (Tonemap.tonemap_exposure_mapper.y == 3.0)
+            {
+                float3 _815;
+                do
+                {
+                    if (Tonemap.tonemap_flags.x == 0.0)
+                    {
+                        _815 = _484;
+                        break;
+                    }
+                    uint2 _745 = uint2(gl_FragCoord.xy);
+                    uint _750 = uint(Tonemap.tonemap_frame.x);
+                    uint _753 = (_750 ^ (_750 >> 16u)) * 2146121005u;
+                    uint _756 = (_753 ^ (_753 >> 15u)) * 2221713035u;
+                    uint _759 = _745.y + (_756 ^ (_756 >> 16u));
+                    uint _762 = (_759 ^ (_759 >> 16u)) * 2146121005u;
+                    uint _765 = (_762 ^ (_762 >> 15u)) * 2221713035u;
+                    uint _768 = _745.x + (_765 ^ (_765 >> 16u));
+                    uint _771 = (_768 ^ (_768 >> 16u)) * 2146121005u;
+                    uint _774 = (_771 ^ (_771 >> 15u)) * 2221713035u;
+                    uint _776 = _774 ^ (_774 >> 16u);
+                    uint _777 = _776 >> 16u;
+                    uint _779 = (_776 ^ _777) * 2146121005u;
+                    uint _782 = (_779 ^ (_779 >> 15u)) * 2221713035u;
+                    uint _784 = _782 ^ (_782 >> 16u);
+                    uint _785 = _784 >> 16u;
+                    uint _787 = (_784 ^ _785) * 2146121005u;
+                    uint _790 = (_787 ^ (_787 >> 15u)) * 2221713035u;
+                    uint _792 = _790 ^ (_790 >> 16u);
+                    _815 = _484 + (float3((1.52587890625e-05 * (float(_776 & 65535u) + float(_777))) - 1.0, (1.52587890625e-05 * (float(_784 & 65535u) + float(_785))) - 1.0, (1.52587890625e-05 * (float(_792 & 65535u) + float(_792 >> 16u))) - 1.0) * 0.00294117652811110019683837890625);
+                    break;
+                } while(false);
+                _928 = powr(precise::max(fast::clamp(_815, float3(0.0), float3(1.0)), float3(0.0)), float3(0.4545454680919647216796875));
+            }
+            else
+            {
+                float3 _896;
+                do
+                {
+                    if (Tonemap.tonemap_flags.x == 0.0)
+                    {
+                        _896 = _484;
+                        break;
+                    }
+                    uint2 _826 = uint2(gl_FragCoord.xy);
+                    uint _831 = uint(Tonemap.tonemap_frame.x);
+                    uint _834 = (_831 ^ (_831 >> 16u)) * 2146121005u;
+                    uint _837 = (_834 ^ (_834 >> 15u)) * 2221713035u;
+                    uint _840 = _826.y + (_837 ^ (_837 >> 16u));
+                    uint _843 = (_840 ^ (_840 >> 16u)) * 2146121005u;
+                    uint _846 = (_843 ^ (_843 >> 15u)) * 2221713035u;
+                    uint _849 = _826.x + (_846 ^ (_846 >> 16u));
+                    uint _852 = (_849 ^ (_849 >> 16u)) * 2146121005u;
+                    uint _855 = (_852 ^ (_852 >> 15u)) * 2221713035u;
+                    uint _857 = _855 ^ (_855 >> 16u);
+                    uint _858 = _857 >> 16u;
+                    uint _860 = (_857 ^ _858) * 2146121005u;
+                    uint _863 = (_860 ^ (_860 >> 15u)) * 2221713035u;
+                    uint _865 = _863 ^ (_863 >> 16u);
+                    uint _866 = _865 >> 16u;
+                    uint _868 = (_865 ^ _866) * 2146121005u;
+                    uint _871 = (_868 ^ (_868 >> 15u)) * 2221713035u;
+                    uint _873 = _871 ^ (_871 >> 16u);
+                    _896 = _484 + (float3((1.52587890625e-05 * (float(_857 & 65535u) + float(_858))) - 1.0, (1.52587890625e-05 * (float(_865 & 65535u) + float(_866))) - 1.0, (1.52587890625e-05 * (float(_873 & 65535u) + float(_873 >> 16u))) - 1.0) * 0.00294117652811110019683837890625);
+                    break;
+                } while(false);
+                float3 _897 = fast::clamp(_896, float3(0.0), float3(1.0));
+                float3 _898 = _897 * 12.9200000762939453125;
+                float3 _902 = (powr(precise::max(_897, float3(0.0)), float3(0.4166666567325592041015625)) * 1.05499994754791259765625) - float3(0.054999999701976776123046875);
+                float _910;
+                if (_897.x <= 0.003130800090730190277099609375)
+                {
+                    _910 = _898.x;
+                }
+                else
+                {
+                    _910 = _902.x;
+                }
+                float _918;
+                if (_897.y <= 0.003130800090730190277099609375)
+                {
+                    _918 = _898.y;
+                }
+                else
+                {
+                    _918 = _902.y;
+                }
+                float _926;
+                if (_897.z <= 0.003130800090730190277099609375)
+                {
+                    _926 = _898.z;
+                }
+                else
+                {
+                    _926 = _902.z;
+                }
+                _928 = float3(_910, _918, _926);
+            }
+            _929 = _928;
+        }
+        float3 _963;
+        do
+        {
+            if (Tonemap.tonemap_flags.y == 0.0)
+            {
+                _963 = _929;
+                break;
+            }
+            float2 _939 = (_929.xy * 0.9375) + float2(0.03125);
+            float _941 = _929.z * 15.0;
+            float _945 = (_939.x + floor(_941)) * 0.0625;
+            float _948 = _939.y;
+            _963 = mix(tonemap_lut.sample(tonemap_lut_sampler, float2(_945, _948), level(0.0)).xyz, tonemap_lut.sample(tonemap_lut_sampler, float2(_945 + 0.0625, _948), level(0.0)).xyz, float3(fract(_941)));
+            break;
+        } while(false);
+        float3 _1000;
+        if (Tonemap.tonemap_flags.z != 0.0)
+        {
+            float3 _970 = _963 * 0.077399380505084991455078125;
+            float3 _974 = powr(precise::max((_963 * 0.94786727428436279296875) + float3(0.0521326996386051177978515625), float3(0.0)), float3(2.400000095367431640625));
+            float _982;
+            if (_963.x <= 0.040449999272823333740234375)
+            {
+                _982 = _970.x;
+            }
+            else
+            {
+                _982 = _974.x;
+            }
+            float _990;
+            if (_963.y <= 0.040449999272823333740234375)
+            {
+                _990 = _970.y;
+            }
+            else
+            {
+                _990 = _974.y;
+            }
+            float _998;
+            if (_963.z <= 0.040449999272823333740234375)
+            {
+                _998 = _970.z;
+            }
+            else
+            {
+                _998 = _974.z;
+            }
+            _1000 = float3(_982, _990, _998);
+        }
+        else
+        {
+            _1000 = _963;
+        }
+        _1005 = float4(_1000, 1.0);
+        break;
+    } while(false);
+    out.out_var_SV_Target0 = _1005;
+    return out;
+}
+

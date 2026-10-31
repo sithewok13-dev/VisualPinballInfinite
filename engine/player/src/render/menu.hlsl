@@ -63,7 +63,10 @@ cbuffer MenuLook : register(b0, space3)
 
 float3 menu_to_linear(float3 c)
 {
-    return c <= 0.04045 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4);
+    // a component at a time, as both FXC and DXC take it (DXC's HLSL 2021 has no vector ?:)
+    float3 lo = c / 12.92;
+    float3 hi = pow((c + 0.055) / 1.055, 2.4);
+    return float3(c.r <= 0.04045 ? lo.r : hi.r, c.g <= 0.04045 ? lo.g : hi.g, c.b <= 0.04045 ? lo.b : hi.b);
 }
 
 // the picture holds sRGB values, its alpha straight

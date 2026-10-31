@@ -32,6 +32,7 @@ struct RawItem {
     pcm: *const f32,
 }
 
+#[cfg(windows)]
 unsafe extern "C" {
     fn vpi_av_load(dir: *const u16) -> i32;
     fn vpi_av_open(path: *const c_char, want_video: i32, want_audio: i32, out_rate: i32, info: *mut RawInfo) -> *mut c_void;
@@ -42,6 +43,52 @@ unsafe extern "C" {
     fn vpi_av_writer_frame(writer: *mut c_void, rgba: *const u8) -> i32;
     fn vpi_av_writer_sound(writer: *mut c_void, samples: *const f32, frames: i32) -> i32;
     fn vpi_av_writer_close(writer: *mut c_void) -> i32;
+}
+
+// Elsewhere the bridge isn't built yet (it loads FFmpeg's libraries the Windows way): FFmpeg is
+// never found, as on a PC without its libraries, and the writer says why it can't start.
+#[cfg(not(windows))]
+use unbuilt::*;
+#[cfg(not(windows))]
+#[allow(clippy::missing_safety_doc)]
+mod unbuilt {
+    use super::{RawInfo, RawItem};
+    use std::ffi::{c_char, c_void};
+
+    pub unsafe fn vpi_av_load(_dir: *const u16) -> i32 {
+        0
+    }
+    pub unsafe fn vpi_av_open(_path: *const c_char, _want_video: i32, _want_audio: i32, _out_rate: i32, _info: *mut RawInfo) -> *mut c_void {
+        std::ptr::null_mut()
+    }
+    pub unsafe fn vpi_av_next(_media: *mut c_void, _item: *mut RawItem) -> i32 {
+        0
+    }
+    pub unsafe fn vpi_av_rewind(_media: *mut c_void) -> i32 {
+        0
+    }
+    pub unsafe fn vpi_av_close(_media: *mut c_void) {}
+    pub unsafe fn vpi_av_writer_open(_path: *const c_char, _width: i32, _height: i32, _fps: i32, _sound_rate: i32, error: *mut c_char, error_len: i32) -> *mut c_void {
+        let why = b"videos are only written on Windows so far\0";
+        let n = why.len().min(error_len.max(0) as usize);
+        if n > 0 {
+            // SAFETY: the caller's buffer holds error_len bytes; the reason is cut to fit, NUL last
+            unsafe {
+                std::ptr::copy_nonoverlapping(why.as_ptr().cast(), error, n);
+                *error.add(n - 1) = 0;
+            }
+        }
+        std::ptr::null_mut()
+    }
+    pub unsafe fn vpi_av_writer_frame(_writer: *mut c_void, _rgba: *const u8) -> i32 {
+        0
+    }
+    pub unsafe fn vpi_av_writer_sound(_writer: *mut c_void, _samples: *const f32, _frames: i32) -> i32 {
+        0
+    }
+    pub unsafe fn vpi_av_writer_close(_writer: *mut c_void) -> i32 {
+        0
+    }
 }
 
 /// The folders FFmpeg's libraries are looked for in, in order.

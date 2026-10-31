@@ -1,0 +1,251 @@
+#include <metal_stdlib>
+#include <simd/simd.h>
+
+using namespace metal;
+
+struct type_Frame
+{
+    float4x4 rot_view_proj;
+    float4 camera;
+    float4 eye;
+    float4 clip_plane;
+};
+
+struct type_Draw
+{
+    float4x4 model;
+};
+
+struct type_Material
+{
+    float4 base_color;
+    float4 emissive;
+    float4 params;
+    float4 light0;
+    float4 light1;
+    float4 extra;
+    float4 part_color_alpha;
+};
+
+struct type_BallShadows
+{
+    float4 lightCenter_doShadow;
+    float4 balls[8];
+};
+
+struct type_Flasher
+{
+    float4 static_color_alpha;
+    float4 alpha_test_filter_add;
+    float4 amount_mva_mode;
+    float4 flasher_term;
+};
+
+struct type_Dmd
+{
+    float4 dmd_tint;
+    float4 dmd_res_alpha_time;
+};
+
+constant float _74 = {};
+
+struct fs_flasher_out
+{
+    float4 out_var_SV_Target0 [[color(0)]];
+};
+
+struct fs_flasher_in
+{
+    float3 in_var_TEXCOORD0 [[user(locn0)]];
+    float2 in_var_TEXCOORD2 [[user(locn2)]];
+};
+
+fragment fs_flasher_out fs_flasher(fs_flasher_in in [[stage_in]], constant type_Flasher& Flasher [[buffer(0)]], constant type_BallShadows& BallShadows [[buffer(2)]], texture2d<float> flasher_a [[texture(0)]], texture2d<float> flasher_b [[texture(1)]], sampler flasher_a_sampler [[sampler(0)]], sampler flasher_b_sampler [[sampler(1)]])
+{
+    fs_flasher_out out = {};
+    float4 _275;
+    do
+    {
+        float4 _96;
+        if (Flasher.amount_mva_mode.z < 2.0)
+        {
+            float4 _89 = flasher_a.sample(flasher_a_sampler, in.in_var_TEXCOORD2);
+            if (_89.w <= Flasher.alpha_test_filter_add.x)
+            {
+                discard_fragment();
+            }
+            _96 = _89;
+        }
+        else
+        {
+            _96 = float4(1.0);
+        }
+        bool _97 = Flasher.amount_mva_mode.z == 1.0;
+        float4 _110;
+        if (_97)
+        {
+            float4 _103 = flasher_b.sample(flasher_b_sampler, in.in_var_TEXCOORD2);
+            if (_103.w <= Flasher.alpha_test_filter_add.y)
+            {
+                discard_fragment();
+            }
+            _110 = _103;
+        }
+        else
+        {
+            _110 = float4(1.0);
+        }
+        float4 _117;
+        if (Flasher.amount_mva_mode.z == 0.0)
+        {
+            _117 = Flasher.static_color_alpha * _96;
+        }
+        else
+        {
+            _117 = Flasher.static_color_alpha;
+        }
+        float4 _163;
+        if (_97)
+        {
+            float4 _138;
+            if (Flasher.alpha_test_filter_add.z == 2.0)
+            {
+                _138 = _117 * precise::max(mix((_96 * _110) * 2.0, float4(1.0) - (((float4(1.0) - _96) * 2.0) * (float4(1.0) - _110)), step(float4(0.5), _96)), float4(0.0));
+            }
+            else
+            {
+                _138 = _117;
+            }
+            float4 _145;
+            if (Flasher.alpha_test_filter_add.z == 3.0)
+            {
+                _145 = _138 * ((_96 * _110) * Flasher.amount_mva_mode.x);
+            }
+            else
+            {
+                _145 = _138;
+            }
+            float4 _152;
+            if (Flasher.alpha_test_filter_add.z == 1.0)
+            {
+                _152 = _145 * (_96 + (_110 * Flasher.amount_mva_mode.x));
+            }
+            else
+            {
+                _152 = _145;
+            }
+            float4 _162;
+            if (Flasher.alpha_test_filter_add.z == 4.0)
+            {
+                _162 = _152 * precise::max(float4(1.0) - ((float4(1.0) - _96) * (float4(1.0) - _110)), float4(0.0));
+            }
+            else
+            {
+                _162 = _152;
+            }
+            _163 = _162;
+        }
+        else
+        {
+            _163 = _117;
+        }
+        float _231;
+        do
+        {
+            if (BallShadows.lightCenter_doShadow.w == 0.0)
+            {
+                _231 = 1.0;
+                break;
+            }
+            float3 _174 = in.in_var_TEXCOORD0 - BallShadows.lightCenter_doShadow.xyz;
+            float _175 = length(_174);
+            float _230;
+            do
+            {
+                float _179;
+                _179 = 1.0;
+                float _180;
+                float _227;
+                bool _228;
+                int _182 = 0;
+                for (;;)
+                {
+                    if (_182 < 8)
+                    {
+                        if (BallShadows.balls[_182].w == 0.0)
+                        {
+                            _227 = _179;
+                            _228 = true;
+                            break;
+                        }
+                        float3 _195 = BallShadows.balls[_182].xyz - BallShadows.lightCenter_doShadow.xyz;
+                        float _198 = dot(_195, _174) / (_175 * _175);
+                        bool _203;
+                        if (_198 > 0.0)
+                        {
+                            _203 = _198 < 1.0;
+                        }
+                        else
+                        {
+                            _203 = false;
+                        }
+                        if (_203)
+                        {
+                            float _210 = 5.0 - (5.0 * _198);
+                            float _211 = _195.x;
+                            float _213 = _195.y;
+                            _180 = _179 * (1.0 + (fast::clamp(((_211 * _211) + (_213 * _213)) / (BallShadows.balls[_182].w * BallShadows.balls[_182].w), 0.0, 1.0) * ((-0.89999997615814208984375) + (0.89999997615814208984375 * smoothstep(BallShadows.balls[_182].w - _210, BallShadows.balls[_182].w + _210, length(_195 - (_174 * _198)))))));
+                        }
+                        else
+                        {
+                            _180 = _179;
+                        }
+                        _179 = _180;
+                        _182++;
+                        continue;
+                    }
+                    else
+                    {
+                        _227 = _74;
+                        _228 = false;
+                        break;
+                    }
+                }
+                if (_228)
+                {
+                    _230 = _227;
+                    break;
+                }
+                _230 = _179;
+                break;
+            } while(false);
+            _231 = _230;
+            break;
+        } while(false);
+        float3 _233 = _163.xyz * _231;
+        if (Flasher.flasher_term.x == 0.0)
+        {
+            _275 = float4(_233, fast::clamp(_163.w, 0.0, 1.0));
+            break;
+        }
+        if (Flasher.flasher_term.x == 3.0)
+        {
+            _275 = float4(_233.xyz * ((-Flasher.amount_mva_mode.y) * _163.w), (1.0 / Flasher.amount_mva_mode.y) - 1.0);
+            break;
+        }
+        float _269;
+        if (Flasher.flasher_term.x == 1.0)
+        {
+            _269 = Flasher.amount_mva_mode.y;
+        }
+        else
+        {
+            _269 = 1.0 - Flasher.amount_mva_mode.y;
+        }
+        _275 = float4((_233.xyz * _163.w) * _269, 1.0);
+        break;
+    } while(false);
+    out.out_var_SV_Target0 = _275;
+    return out;
+}
+

@@ -1,0 +1,81 @@
+# The player on Apple's systems, the first step towards iOS (tools/shaders/README.md): every shader
+# made ahead as MSL compiled by Apple's own Metal compiler, for macOS and for iOS; the player built
+# for macOS; and VPX's own test table drawn on Metal, the picture kept beside VPX's reference.
+name: Apple (Metal)
+
+on:
+  push:
+    branches: [claude/ios-port-discussion-5jm3ys]
+    paths:
+      - ".github/workflows/apple-metal.yml"
+      - "engine/**"
+      - "vendor/**"
+      - "Cargo.*"
+  workflow_dispatch:
+
+jobs:
+  metal:
+    runs-on: macos-15
+    timeout-minutes: 60
+    env:
+      # VPX's test table and its reference picture, from VPX's own tests at a fixed commit
+      VPX_COMMIT: 3d954086154f7e8cf84a43f6c8ea03a7b15eb84d
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Every MSL shader through Apple's Metal compiler (macOS and iOS)
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/msl"
+          mkdir -p "$work"
+          failed=0
+          for f in engine/player/shaders/*.msl; do
+            name=$(basename "$f" .msl)
+            cp "$f" "$work/$name.metal"
+            for sdk in macosx iphoneos; do
+              if ! xcrun -sdk "$sdk" metal -c "$work/$name.metal" -o "$work/$name.$sdk.air" 2> "$work/$name.$sdk.log"; then
+                echo "::error::$name failed for $sdk"; cat "$work/$name.$sdk.log"; failed=1
+              fi
+            done
+          done
+          echo "$(ls engine/player/shaders/*.msl | wc -l) shaders compiled for macOS and iOS"
+          exit $failed
+
+      - name: Rust
+        run: |
+          rustup toolchain install 1.98.0 --profile minimal
+          rustup default 1.98.0
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: apple-metal-${{ hashFiles('Cargo.lock') }}
+
+      - name: The shaders made ahead match their sources
+        run: cargo test -p player render::shaders
+
+      - name: Build the player
+        run: cargo build --release -p player
+
+      - name: Draw VPX's test table on Metal
+        run: |
+          set -uo pipefail
+          mkdir -p shots
+          base="https://raw.githubusercontent.com/vpinball/vpinball/$VPX_COMMIT/tests/assets"
+          curl -sSfL -o table.vpx "$base/test000-default-table.vpx"
+          curl -sSfL -o shots/vpx-reference.webp "$base/test000-default-table-Ref.webp"
+          for look in vpx classic; do
+            ./target/release/vpi-player table.vpx --size 1920x1080 --look $look --no-script --one-screen \
+              --shot "shots/metal-$look.png" 2>&1 | tee "shots/player-$look.log" || true
+          done
+          ls shots
+          test -f shots/metal-vpx.png
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: metal-shots
+          path: shots

@@ -100,7 +100,7 @@ pub(super) struct Still {
     pub(super) clamp_sampler: *mut SDL_GPUSampler,
 }
 
-const STILL_HLSL: &str = include_str!("still.hlsl");
+const STILL_HLSL: &str = super::shaders::STILL;
 
 impl Renderer {
     /// Draws the still parts once a frame from now on (VPX's static prepass),

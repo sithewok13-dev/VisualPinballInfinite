@@ -391,6 +391,7 @@ pub mod sun {
         pub local_adjust: f64,
     }
 
+    #[cfg(windows)]
     #[repr(C)]
     #[derive(Default)]
     struct SystemTime {
@@ -404,13 +405,39 @@ pub mod sun {
         milliseconds: u16,
     }
 
+    #[cfg(windows)]
     #[link(name = "kernel32")]
     unsafe extern "system" {
         fn GetLocalTime(time: *mut SystemTime);
         fn GetSystemTime(time: *mut SystemTime);
     }
 
+    /// The local date and time from SDL's clock, its offset from universal time with it (seconds).
+    #[cfg(not(windows))]
+    pub(crate) fn local_now() -> Option<sdl3_sys::everything::SDL_DateTime> {
+        use sdl3_sys::everything::*;
+        let mut ticks = 0;
+        let mut t: SDL_DateTime = unsafe { std::mem::zeroed() };
+        // SAFETY: SDL's clock functions fill what they're given; they need no SDL_Init
+        unsafe { (SDL_GetCurrentTime(&mut ticks) && SDL_TimeToDateTime(ticks, &mut t, true)).then_some(t) }
+    }
+
     impl Clock {
+        #[cfg(not(windows))]
+        pub fn now() -> Clock {
+            let t = local_now().unwrap_or_default();
+            let dif = (t.utc_offset as f64 / 3600.0).trunc();
+            Clock {
+                year: t.year.max(0) as u32,
+                month: t.month.max(0) as u32,
+                day: t.day.max(0) as u32,
+                hour: t.hour.max(0) as u32,
+                minute: t.minute.max(0) as u32,
+                local_adjust: dif.clamp(-12.0, 12.0),
+            }
+        }
+
+        #[cfg(windows)]
         pub fn now() -> Clock {
             let (mut local, mut utc) = (SystemTime::default(), SystemTime::default());
             // SAFETY: both fill the structures they're given

@@ -51,8 +51,8 @@ pub enum Sharpen {
     BilateralCas,
 }
 
-const POST_HLSL: &str = concat!(include_str!("post_common.hlsl"), include_str!("post.hlsl"));
-const SMAA_HLSL: &str = concat!(include_str!("post_common.hlsl"), include_str!("smaa.hlsl"), include_str!("smaa_passes.hlsl"));
+const POST_HLSL: &str = super::shaders::POST;
+const SMAA_HLSL: &str = super::shaders::SMAA;
 /// SMAA's lookup pictures (MIT, engine/player/assets/smaa).
 const SMAA_AREA: &[u8] = include_bytes!("../../assets/smaa/area.bin");
 const SMAA_SEARCH: &[u8] = include_bytes!("../../assets/smaa/search.bin");

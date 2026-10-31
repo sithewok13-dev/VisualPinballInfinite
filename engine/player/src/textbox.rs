@@ -195,6 +195,7 @@ fn draw_picture(font: Option<&gdi::PlayFont>, look: &TextBoxLook, now: &TextBoxN
 }
 
 /// Windows' OLE fonts and GDI, as `Textbox::Render` uses them.
+#[cfg(windows)]
 mod gdi {
     use std::ffi::c_void;
     use std::ptr::{null, null_mut};
@@ -433,5 +434,35 @@ mod gdi {
             assert!(texels.iter().any(|&t| t & 0xFF_FFFF == 0xFF_FFFF));
             assert_eq!(texels[0] & 0xFF_FFFF, 0);
         }
+    }
+}
+
+/// Elsewhere, no text yet: a text box shows its back colour.
+#[cfg(not(windows))]
+mod gdi {
+    use super::FontLook;
+
+    #[allow(dead_code)] // where the text would go
+    #[derive(Clone, Copy)]
+    pub struct Rect {
+        pub left: i32,
+        pub top: i32,
+        pub right: i32,
+        pub bottom: i32,
+    }
+
+    pub struct PlayFont;
+
+    impl PlayFont {
+        pub fn new(_font: &FontLook) -> Option<PlayFont> {
+            None
+        }
+    }
+
+    /// The back colour alone, as 0x00RRGGBB texels.
+    #[allow(clippy::too_many_arguments)]
+    pub fn draw_text(_font: Option<&PlayFont>, _text: &str, width: i32, height: i32, back_color: u32, _font_color: u32, _align: i32, _rc_out: Rect) -> Vec<u32> {
+        let c = back_color;
+        vec![((c & 0xFF) << 16) | (c & 0xFF00) | ((c >> 16) & 0xFF); (width.max(0) * height.max(0)) as usize]
     }
 }

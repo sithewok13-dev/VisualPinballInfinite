@@ -1,0 +1,23 @@
+#include <metal_stdlib>
+#include <simd/simd.h>
+
+using namespace metal;
+
+struct type_Embed
+{
+    float4 embed_fill;
+    float4 embed_mode;
+};
+
+struct embed_fill_fs_out
+{
+    float4 out_var_SV_Target [[color(0)]];
+};
+
+fragment embed_fill_fs_out embed_fill_fs(constant type_Embed& Embed [[buffer(0)]])
+{
+    embed_fill_fs_out out = {};
+    out.out_var_SV_Target = Embed.embed_fill;
+    return out;
+}
+

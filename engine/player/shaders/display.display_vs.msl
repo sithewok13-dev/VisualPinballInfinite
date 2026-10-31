@@ -1,0 +1,82 @@
+#pragma clang diagnostic ignored "-Wmissing-prototypes"
+#pragma clang diagnostic ignored "-Wmissing-braces"
+
+#include <metal_stdlib>
+#include <simd/simd.h>
+
+using namespace metal;
+
+template<typename T, size_t Num>
+struct spvUnsafeArray
+{
+    T elements[Num ? Num : 1];
+    
+    thread T& operator [] (size_t pos) thread
+    {
+        return elements[pos];
+    }
+    constexpr const thread T& operator [] (size_t pos) const thread
+    {
+        return elements[pos];
+    }
+    
+    device T& operator [] (size_t pos) device
+    {
+        return elements[pos];
+    }
+    constexpr const device T& operator [] (size_t pos) const device
+    {
+        return elements[pos];
+    }
+    
+    constexpr const constant T& operator [] (size_t pos) const constant
+    {
+        return elements[pos];
+    }
+    
+    threadgroup T& operator [] (size_t pos) threadgroup
+    {
+        return elements[pos];
+    }
+    constexpr const threadgroup T& operator [] (size_t pos) const threadgroup
+    {
+        return elements[pos];
+    }
+};
+
+struct type_DisplayQuad
+{
+    float4 display_rect;
+    float4 display_glass_area;
+    float4 display_glass_pad;
+};
+
+struct type_Display
+{
+    float4 display_lit_diffuse;
+    float4 display_unlit_mode;
+    float4 display_glass_tint_roughness;
+    float4 display_glass_ambient;
+    float4 display_size;
+    float4 display_properties;
+    float4 display_seg_state[4];
+};
+
+constant spvUnsafeArray<float2, 6> _50 = spvUnsafeArray<float2, 6>({ float2(0.0), float2(1.0, 0.0), float2(0.0, 1.0), float2(0.0, 1.0), float2(1.0, 0.0), float2(1.0) });
+
+struct display_vs_out
+{
+    float2 out_var_TEXCOORD0 [[user(locn0)]];
+    float2 out_var_TEXCOORD1 [[user(locn1)]];
+    float4 gl_Position [[position]];
+};
+
+vertex display_vs_out display_vs(constant type_DisplayQuad& DisplayQuad [[buffer(0)]], uint gl_VertexIndex [[vertex_id]])
+{
+    display_vs_out out = {};
+    out.gl_Position = float4(mix(DisplayQuad.display_rect.x, DisplayQuad.display_rect.z, _50[gl_VertexIndex].x), mix(DisplayQuad.display_rect.y, DisplayQuad.display_rect.w, _50[gl_VertexIndex].y), 0.0, 1.0);
+    out.out_var_TEXCOORD0 = DisplayQuad.display_glass_area.xy + (_50[gl_VertexIndex] * DisplayQuad.display_glass_area.zw);
+    out.out_var_TEXCOORD1 = (_50[gl_VertexIndex] * float2((1.0 + DisplayQuad.display_glass_pad.x) + DisplayQuad.display_glass_pad.y, (1.0 + DisplayQuad.display_glass_pad.z) + DisplayQuad.display_glass_pad.w)) - float2(DisplayQuad.display_glass_pad.x, DisplayQuad.display_glass_pad.z);
+    return out;
+}
+

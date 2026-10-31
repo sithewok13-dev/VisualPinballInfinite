@@ -1,0 +1,28 @@
+#include <metal_stdlib>
+#include <simd/simd.h>
+
+using namespace metal;
+
+struct type_Tonemap
+{
+    float4 tonemap_exposure_mapper;
+    float4 tonemap_flags;
+    float4 tonemap_frame;
+    float4 tonemap_ao_info;
+    float4 tonemap_hdr;
+    float4 tonemap_spline1;
+    float4 tonemap_spline2;
+};
+
+struct tonemap_vs_out
+{
+    float4 gl_Position [[position]];
+};
+
+vertex tonemap_vs_out tonemap_vs(uint gl_VertexIndex [[vertex_id]])
+{
+    tonemap_vs_out out = {};
+    out.gl_Position = float4((float2(float((gl_VertexIndex << 1u) & 2u), float(gl_VertexIndex & 2u)) * float2(2.0, -2.0)) + float2(-1.0, 1.0), 0.0, 1.0);
+    return out;
+}
+

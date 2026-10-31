@@ -1,11 +1,12 @@
-//! Draws the table with SDL3 GPU on Direct3D 12: the scene from
-//! `vpin`'s meshes, the balls, and the on-screen readouts. Shaders are HLSL,
-//! compiled at startup by FXC. Drawing never waits for the graphics card: when
+//! Draws the table with SDL3 GPU on Direct3D 12 (elsewhere on Metal or Vulkan): the scene from
+//! `vpin`'s meshes, the balls, and the on-screen readouts. Shaders are HLSL, compiled at startup
+//! by FXC on Windows and made ahead for the others (`shaders.rs`). Drawing never waits for the graphics card: when
 //! no swapchain image is free, the frame is skipped.
 
 mod backglass;
 mod effects;
 mod embed;
+#[cfg(windows)]
 mod fxc;
 mod hdr10;
 mod menu;
@@ -13,6 +14,7 @@ mod mips;
 mod post;
 mod pup;
 mod segments;
+pub mod shaders;
 mod still;
 
 pub use effects::AmbientOcclusion;
@@ -35,16 +37,12 @@ use crate::font;
 use crate::math::{Mat4, Vec3};
 use crate::scene::{Scene, Vertex};
 
-const SCENE_HLSL: &str = include_str!("player.hlsl");
-const OVERLAY_HLSL: &str = include_str!("overlay.hlsl");
-/// The score display's dots, compiled after the overlay's or the scene's shaders.
-const DMD_HLSL: &str = include_str!("dmd.hlsl");
-/// The score display's own window: VPX's newer display renderer.
-const DISPLAY_HLSL: &str = include_str!("display.hlsl");
-/// VPX's look: the final pass, tonemapping the table's picture into the window's colours.
-const TONEMAP_HLSL: &str = include_str!("tonemap.hlsl");
-/// VPX's look: VPX's basic material, and its environment's irradiance.
-const MATERIAL_HLSL: &str = include_str!("material.hlsl");
+// the shaders' sources (`shaders.rs`)
+const SCENE_HLSL: &str = shaders::SCENE;
+const OVERLAY_HLSL: &str = shaders::OVERLAY;
+const DISPLAY_HLSL: &str = shaders::DISPLAY;
+const TONEMAP_HLSL: &str = shaders::TONEMAP;
+const MATERIAL_HLSL: &str = shaders::MATERIAL;
 /// The most bytes of pictures on their way to the graphics card at once.
 const UPLOAD_BATCH: usize = 256 << 20;
 
@@ -187,10 +185,8 @@ fn mips_texels(format: SDL_GPUTextureFormat) -> Option<mips::Texels> {
     }
 }
 
-/// VPX's look: bloom, the glow around what's brighter than VPX's threshold.
-const BLOOM_HLSL: &str = include_str!("bloom.hlsl");
-/// VPX 5436's embedded windows: a window's picture taken into the table's (`embed.rs`).
-const EMBED_HLSL: &str = include_str!("embed.hlsl");
+const BLOOM_HLSL: &str = shaders::BLOOM;
+const EMBED_HLSL: &str = shaders::EMBED;
 /// The irradiance picture's format (VPX's for an environment of 8 bits a colour).
 const IRRADIANCE_FORMAT: SDL_GPUTextureFormat = SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT;
 const DEPTH_FORMAT: SDL_GPUTextureFormat = SDL_GPU_TEXTUREFORMAT_D32_FLOAT;
@@ -243,7 +239,7 @@ fn non_null<T>(pointer: *mut T, what: &str) -> Result<*mut T, String> {
     if pointer.is_null() { Err(format!("{what}: {}", sdl_error())) } else { Ok(pointer) }
 }
 
-/// The GPU device, on Direct3D 12: the graphics card Windows ranks for high performance, or with
+/// The GPU device, on Direct3D 12 (elsewhere, Metal or Vulkan): the graphics card Windows ranks for high performance, or with
 /// `VPI_GPU_LOW_POWER` set the one it ranks for low power (a laptop's or a processor's own, where
 /// there's a second). Which card it is goes in the log.
 ///
@@ -252,8 +248,18 @@ fn non_null<T>(pointer: *mut T, what: &str) -> Result<*mut T, String> {
 unsafe fn create_device() -> *mut SDL_GPUDevice {
     unsafe {
         let props = SDL_CreateProperties();
-        SDL_SetStringProperty(props, SDL_PROP_GPU_DEVICE_CREATE_NAME_STRING, c"direct3d12".as_ptr());
-        SDL_SetBooleanProperty(props, SDL_PROP_GPU_DEVICE_CREATE_SHADERS_DXBC_BOOLEAN, true);
+        #[cfg(windows)]
+        {
+            SDL_SetStringProperty(props, SDL_PROP_GPU_DEVICE_CREATE_NAME_STRING, c"direct3d12".as_ptr());
+            SDL_SetBooleanProperty(props, SDL_PROP_GPU_DEVICE_CREATE_SHADERS_DXBC_BOOLEAN, true);
+        }
+        // elsewhere the API SDL picks (Metal on Apple's systems, Vulkan on others), with the
+        // shaders made ahead for it
+        #[cfg(not(windows))]
+        {
+            SDL_SetBooleanProperty(props, SDL_PROP_GPU_DEVICE_CREATE_SHADERS_SPIRV_BOOLEAN, true);
+            SDL_SetBooleanProperty(props, SDL_PROP_GPU_DEVICE_CREATE_SHADERS_MSL_BOOLEAN, true);
+        }
         SDL_SetBooleanProperty(props, SDL_PROP_GPU_DEVICE_CREATE_DEBUGMODE_BOOLEAN, false);
         let low_power = std::env::var_os("VPI_GPU_LOW_POWER").is_some_and(|v| !v.is_empty() && v != "0");
         SDL_SetBooleanProperty(props, SDL_PROP_GPU_DEVICE_CREATE_PREFERLOWPOWER_BOOLEAN, low_power);
@@ -1279,7 +1285,9 @@ impl Renderer {
             // screen's as SDL reports them (VPX's Window); else linear output, encoded to sRGB by
             // the swapchain
             let props = SDL_GetWindowProperties(window);
-            if r.hdr
+            // (Windows only so far: its readouts' shaders are compiled with the screen's white)
+            if cfg!(windows)
+                && r.hdr
                 && let Some(request) = hdr
                 && SDL_GetBooleanProperty(props, SDL_PROP_WINDOW_HDR_ENABLED_BOOLEAN, false)
                 && SDL_WindowSupportsGPUSwapchainComposition(device, window, SDL_GPU_SWAPCHAINCOMPOSITION_HDR10_ST2084)
@@ -1418,6 +1426,9 @@ impl Renderer {
         }
     }
 
+    /// One of `source`'s shaders: compiled here by FXC on Windows, else the one made ahead for the
+    /// device's API (`shaders.rs`), checked to read no more than is bound.
+    #[cfg(windows)]
     fn shader(&self, source: &str, entry: &CStr, target: &CStr, stage: SDL_GPUShaderStage, samplers: u32, uniforms: u32) -> Result<*mut SDL_GPUShader, String> {
         let code = fxc::compile(source, entry, target)?;
         unsafe {
@@ -1426,6 +1437,40 @@ impl Renderer {
             info.code = code.as_ptr();
             info.entrypoint = entry.as_ptr();
             info.format = SDL_GPU_SHADERFORMAT_DXBC;
+            info.stage = stage;
+            info.num_samplers = samplers;
+            info.num_uniform_buffers = uniforms;
+            non_null(SDL_CreateGPUShader(self.device, &info), "create shader")
+        }
+    }
+
+    #[cfg(not(windows))]
+    fn shader(&self, source: &str, entry: &CStr, _target: &CStr, stage: SDL_GPUShaderStage, samplers: u32, uniforms: u32) -> Result<*mut SDL_GPUShader, String> {
+        let name = entry.to_string_lossy();
+        let made = shaders::made(source, &name).ok_or_else(|| format!("{name} wasn't made ahead from this source: see tools/shaders/README.md"))?;
+        // a binding the shader never reads is left out of it as made (as FXC leaves it out), so
+        // it may use fewer than are bound, never more
+        if made.vertex != (stage == SDL_GPU_SHADERSTAGE_VERTEX) || made.samplers > samplers || made.uniform_buffers > uniforms {
+            return Err(format!(
+                "{name} as made reads {} samplers and {} uniform buffers, where {samplers} and {uniforms} are bound",
+                made.samplers, made.uniform_buffers
+            ));
+        }
+        unsafe {
+            let formats = SDL_GetGPUShaderFormats(self.device);
+            let mut info: SDL_GPUShaderCreateInfo = zeroed();
+            if formats & SDL_GPU_SHADERFORMAT_MSL != 0 {
+                info.code_size = made.msl.len();
+                info.code = made.msl.as_ptr();
+                info.format = SDL_GPU_SHADERFORMAT_MSL;
+            } else if formats & SDL_GPU_SHADERFORMAT_SPIRV != 0 {
+                info.code_size = made.spirv.len();
+                info.code = made.spirv.as_ptr();
+                info.format = SDL_GPU_SHADERFORMAT_SPIRV;
+            } else {
+                return Err("the graphics device takes neither SPIR-V nor MSL".into());
+            }
+            info.entrypoint = entry.as_ptr();
             info.stage = stage;
             info.num_samplers = samplers;
             info.num_uniform_buffers = uniforms;
@@ -1474,8 +1519,8 @@ impl Renderer {
         let bbfs = self.shader(OVERLAY_HLSL, c"backdrop_bulb_fs", c"ps_5_1", SDL_GPU_SHADERSTAGE_FRAGMENT, 1, 1)?;
         let flasher_fs = self.shader(SCENE_HLSL, c"fs_flasher", c"ps_5_1", SDL_GPU_SHADERSTAGE_FRAGMENT, 2, 3)?;
         let unshaded_fs = self.shader(SCENE_HLSL, c"fs_unshaded", c"ps_5_1", SDL_GPU_SHADERSTAGE_FRAGMENT, 1, 3)?;
-        let dmd_flasher_fs = self.shader(&format!("#define DMD_SCENE\n{SCENE_HLSL}\n{DMD_HLSL}"), c"fs_dmd_flasher", c"ps_5_1", SDL_GPU_SHADERSTAGE_FRAGMENT, 1, 1)?;
-        let dmd_backdrop_fs = self.shader(&format!("#define DMD_OVERLAY\n{OVERLAY_HLSL}\n{DMD_HLSL}"), c"dmd_backdrop_fs", c"ps_5_1", SDL_GPU_SHADERSTAGE_FRAGMENT, 1, 1)?;
+        let dmd_flasher_fs = self.shader(shaders::DMD_SCENE, c"fs_dmd_flasher", c"ps_5_1", SDL_GPU_SHADERSTAGE_FRAGMENT, 1, 1)?;
+        let dmd_backdrop_fs = self.shader(shaders::DMD_OVERLAY, c"dmd_backdrop_fs", c"ps_5_1", SDL_GPU_SHADERSTAGE_FRAGMENT, 1, 1)?;
         unsafe {
             let mut buffer: SDL_GPUVertexBufferDescription = zeroed();
             buffer.slot = 0;
@@ -1607,7 +1652,7 @@ impl Renderer {
                 SDL_ReleaseGPUShader(self.device, vpx_fs);
                 // a part drawn bent (VPX's refraction): unblended, what's behind it mixed in by
                 // its own opacity, writing depth or not as the part says
-                let refract_fs = self.shader(&format!("#define REFRACTION\n{MATERIAL_HLSL}"), c"fs_vpx", c"ps_5_1", SDL_GPU_SHADERSTAGE_FRAGMENT, 8, 4)?;
+                let refract_fs = self.shader(shaders::MATERIAL_REFRACTION, c"fs_vpx", c"ps_5_1", SDL_GPU_SHADERSTAGE_FRAGMENT, 8, 4)?;
                 let mut refract = vpx;
                 refract.fragment_shader = refract_fs;
                 self.vpx_refract_depth = self.part_pipeline(&refract);
@@ -1632,7 +1677,7 @@ impl Renderer {
                 self.vpx_mirror_add = self.part_pipeline(&mirror_add);
                 SDL_ReleaseGPUShader(self.device, reflection_fs);
                 // the ball: solid, VPX's ball shader
-                let ball_fs = self.shader(&format!("#define BALL\n{MATERIAL_HLSL}"), c"fs_vpx_ball", c"ps_5_1", SDL_GPU_SHADERSTAGE_FRAGMENT, 5, 2)?;
+                let ball_fs = self.shader(shaders::MATERIAL_BALL, c"fs_vpx_ball", c"ps_5_1", SDL_GPU_SHADERSTAGE_FRAGMENT, 5, 2)?;
                 vpx.fragment_shader = ball_fs;
                 self.vpx_ball = SDL_CreateGPUGraphicsPipeline(self.device, &vpx);
                 SDL_ReleaseGPUShader(self.device, ball_fs);
@@ -1652,9 +1697,7 @@ impl Renderer {
             if hdr {
                 // VPX's look: a classic light with a picture of its own, added the same way, its
                 // picture lit by VPX's material (fs_classic_light.sc)
-                let classic_fs =
-                    self.shader(&format!("#define CLASSIC_LIGHT
-{MATERIAL_HLSL}"), c"fs_vpx_classic_light", c"ps_5_1", SDL_GPU_SHADERSTAGE_FRAGMENT, 3, 4)?;
+                let classic_fs = self.shader(shaders::MATERIAL_CLASSIC_LIGHT, c"fs_vpx_classic_light", c"ps_5_1", SDL_GPU_SHADERSTAGE_FRAGMENT, 3, 4)?;
                 let mut classic = info;
                 classic.fragment_shader = classic_fs;
                 self.vpx_classic_light = SDL_CreateGPUGraphicsPipeline(self.device, &classic);
@@ -1972,9 +2015,9 @@ impl Renderer {
         let height = (env_height.min(256) / 8).max(1);
         let width = height * 2;
         self.irradiance = self.texture(IRRADIANCE_FORMAT, SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER, width, height, 1, SDL_GPU_SAMPLECOUNT_1)?;
-        let source = format!("#define IRRADIANCE\n{MATERIAL_HLSL}");
-        let vs = self.shader(&source, c"irradiance_vs", c"vs_5_1", SDL_GPU_SHADERSTAGE_VERTEX, 0, 0)?;
-        let fs = match self.shader(&source, c"irradiance_fs", c"ps_5_1", SDL_GPU_SHADERSTAGE_FRAGMENT, 1, 0) {
+        let source = shaders::MATERIAL_IRRADIANCE;
+        let vs = self.shader(source, c"irradiance_vs", c"vs_5_1", SDL_GPU_SHADERSTAGE_VERTEX, 0, 0)?;
+        let fs = match self.shader(source, c"irradiance_fs", c"ps_5_1", SDL_GPU_SHADERSTAGE_FRAGMENT, 1, 0) {
             Ok(fs) => fs,
             Err(e) => {
                 unsafe { SDL_ReleaseGPUShader(self.device, vs) };

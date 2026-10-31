@@ -1,0 +1,27 @@
+#include <metal_stdlib>
+#include <simd/simd.h>
+
+using namespace metal;
+
+struct type_Effects
+{
+    float4x4 effect_m0;
+    float4x4 effect_m1;
+    float4 effect_v0;
+    float4 effect_v1;
+    float4 effect_v2;
+    float4 effect_v3;
+};
+
+struct effect_vs_out
+{
+    float4 gl_Position [[position]];
+};
+
+vertex effect_vs_out effect_vs(uint gl_VertexIndex [[vertex_id]])
+{
+    effect_vs_out out = {};
+    out.gl_Position = float4((float2(float((gl_VertexIndex << 1u) & 2u), float(gl_VertexIndex & 2u)) * float2(2.0, -2.0)) + float2(-1.0, 1.0), 0.0, 1.0);
+    return out;
+}
+

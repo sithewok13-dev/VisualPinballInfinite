@@ -1,0 +1,59 @@
+#include <metal_stdlib>
+#include <simd/simd.h>
+
+using namespace metal;
+
+struct type_Post
+{
+    float4 w_h_height;
+    float4 post_flags;
+};
+
+struct type_PostVertex
+{
+    float4 smaa_vs_metrics;
+};
+
+constant float4 _41 = {};
+
+struct smaa_edge_fs_out
+{
+    float4 out_var_SV_Target [[color(0)]];
+};
+
+struct smaa_edge_fs_in
+{
+    float2 in_var_TEXCOORD0 [[user(locn0)]];
+    float4 in_var_TEXCOORD1 [[user(locn1)]];
+    float4 in_var_TEXCOORD2 [[user(locn2)]];
+    float4 in_var_TEXCOORD3 [[user(locn3)]];
+};
+
+fragment smaa_edge_fs_out smaa_edge_fs(smaa_edge_fs_in in [[stage_in]], texture2d<float> smaa_first [[texture(0)]], sampler post_point_sampler [[sampler(1)]])
+{
+    smaa_edge_fs_out out = {};
+    float4 _50 = smaa_first.sample(post_point_sampler, in.in_var_TEXCOORD0);
+    float3 _51 = _50.xyz;
+    float4 _55 = smaa_first.sample(post_point_sampler, in.in_var_TEXCOORD1.xy);
+    float3 _56 = _55.xyz;
+    float _59 = dot(abs(_51 - _56), float3(0.3325000107288360595703125, 0.665000021457672119140625, 0.3325000107288360595703125));
+    float4 _60;
+    _60.x = _59;
+    float4 _64 = smaa_first.sample(post_point_sampler, in.in_var_TEXCOORD1.zw);
+    float3 _65 = _64.xyz;
+    float _68 = dot(abs(_51 - _65), float3(0.3325000107288360595703125, 0.665000021457672119140625, 0.3325000107288360595703125));
+    _60.y = _68;
+    float2 _71 = step(float2(0.100000001490116119384765625), _60.xy);
+    if (_71.x == (-_71.y))
+    {
+        discard_fragment();
+    }
+    float4 _94 = float4(_59, _68, dot(abs(_51 - smaa_first.sample(post_point_sampler, in.in_var_TEXCOORD2.xy).xyz), float3(0.3325000107288360595703125, 0.665000021457672119140625, 0.3325000107288360595703125)), dot(abs(_51 - smaa_first.sample(post_point_sampler, in.in_var_TEXCOORD2.zw).xyz), float3(0.3325000107288360595703125, 0.665000021457672119140625, 0.3325000107288360595703125)));
+    float4 _106 = _94;
+    _106.z = dot(abs(_56 - smaa_first.sample(post_point_sampler, in.in_var_TEXCOORD3.xy).xyz), float3(0.3325000107288360595703125, 0.665000021457672119140625, 0.3325000107288360595703125));
+    _106.w = dot(abs(_65 - smaa_first.sample(post_point_sampler, in.in_var_TEXCOORD3.zw).xyz), float3(0.3325000107288360595703125, 0.665000021457672119140625, 0.3325000107288360595703125));
+    float2 _117 = precise::max(precise::max(_94.xy, _94.zw), _106.zw);
+    out.out_var_SV_Target = float4(_71 * step(float2(precise::max(_117.x, _117.y)), _106.xy * 2.0), 0.0, 0.0);
+    return out;
+}
+

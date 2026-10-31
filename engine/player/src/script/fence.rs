@@ -15,7 +15,9 @@
 //! gives it: Windows' own objects for every class that isn't one of ours —
 //! the shell, the internet, any program's — and every file ([`set_open`]).
 
-use std::cell::{Cell, RefCell};
+#[cfg(windows)]
+use std::cell::Cell;
+use std::cell::RefCell;
 use std::ffi::c_void;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -69,6 +71,7 @@ pub fn open_for(main: &crate::settings::Settings, table: &std::path::Path) -> bo
     own.or_else(|| main.get("VPI", "ScriptsReachOutside").and_then(crate::settings::vpx_bool)).unwrap_or(false)
 }
 
+#[cfg(windows)]
 #[link(name = "ole32")]
 unsafe extern "system" {
     fn CLSIDFromProgID(progid: *const u16, clsid: *mut GUID) -> HRESULT;
@@ -76,10 +79,14 @@ unsafe extern "system" {
     fn CoInitializeEx(reserved: *mut c_void, coinit: u32) -> HRESULT;
 }
 
+#[cfg(windows)]
 const CLSCTX_INPROC_SERVER: u32 = 0x1;
+#[cfg(windows)]
 const CLSCTX_LOCAL_SERVER: u32 = 0x4;
+#[cfg(windows)]
 const COINIT_APARTMENTTHREADED: u32 = 0x2;
 
+#[cfg(windows)]
 thread_local! {
     /// COM started on the script's thread, the first time a Windows object is asked for.
     static COM_STARTED: Cell<bool> = const { Cell::new(false) };
@@ -87,6 +94,7 @@ thread_local! {
 
 /// Windows' own object of a class, as VPX's script engine would make it
 /// (`CreateObject` in Microsoft's VBScript), for a table let outside.
+#[cfg(windows)]
 fn windows_object(progid: &str) -> Option<*mut IDispatch> {
     if !COM_STARTED.get() {
         // SAFETY: the script's thread; a second start is answered and harmless
@@ -106,6 +114,12 @@ fn windows_object(progid: &str) -> Option<*mut IDispatch> {
         }
     }
     Some(object.cast())
+}
+
+/// Elsewhere there are no Windows objects to make.
+#[cfg(not(windows))]
+fn windows_object(_progid: &str) -> Option<*mut IDispatch> {
+    None
 }
 
 /// libwinevbs's own objects that are on the list. `FileSystemObject` is held

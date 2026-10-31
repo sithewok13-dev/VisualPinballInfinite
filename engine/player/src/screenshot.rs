@@ -92,6 +92,7 @@ pub fn folder(table: &Path) -> Option<PathBuf> {
 }
 
 /// Now, local time, as a file's name begins: `2025-01-02 21-14-05`.
+#[cfg(windows)]
 pub(crate) fn stamp() -> String {
     #[repr(C)]
     #[derive(Default)]
@@ -112,6 +113,13 @@ pub(crate) fn stamp() -> String {
     let mut t = SystemTime::default();
     // SAFETY: fills the structure it's given
     unsafe { GetLocalTime(&mut t) };
+    format!("{:04}-{:02}-{:02} {:02}-{:02}-{:02}", t.year, t.month, t.day, t.hour, t.minute, t.second)
+}
+
+/// Elsewhere, the same from SDL's clock.
+#[cfg(not(windows))]
+pub(crate) fn stamp() -> String {
+    let t = crate::vpx_settings::sun::local_now().unwrap_or_default();
     format!("{:04}-{:02}-{:02} {:02}-{:02}-{:02}", t.year, t.month, t.day, t.hour, t.minute, t.second)
 }
 

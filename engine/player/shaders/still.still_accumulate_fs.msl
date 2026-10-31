@@ -1,0 +1,23 @@
+#include <metal_stdlib>
+#include <simd/simd.h>
+
+using namespace metal;
+
+struct type_StillWeights
+{
+    float4 still_weights;
+};
+
+struct still_accumulate_fs_out
+{
+    float4 out_var_SV_Target [[color(0)]];
+};
+
+fragment still_accumulate_fs_out still_accumulate_fs(constant type_StillWeights& StillWeights [[buffer(0)]], texture2d<float> still_picture [[texture(0)]], float4 gl_FragCoord [[position]])
+{
+    still_accumulate_fs_out out = {};
+    float4 _37 = still_picture.read(uint2(int3(int(gl_FragCoord.x), int(gl_FragCoord.y), 0).xy), 0);
+    out.out_var_SV_Target = float4(_37.xyz * StillWeights.still_weights.x, _37.w * StillWeights.still_weights.y);
+    return out;
+}
+

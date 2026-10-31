@@ -37,6 +37,7 @@ pub struct Callbacks {
     pub create_object: unsafe extern "C" fn(progid: *const u16, factory: *mut c_void, object: *mut *mut c_void) -> HRESULT,
 }
 
+#[cfg(windows)]
 type InitFn = unsafe extern "C" fn(*const Callbacks);
 
 /// Asked about every path the file object touches (`libwinevbs_file_fence_t`).
@@ -108,11 +109,13 @@ fn candidates() -> Vec<PathBuf> {
     out
 }
 
+#[cfg(windows)]
 unsafe extern "C" {
     /// The C runtime's formatter behind every `printf` (UCRT).
     fn __stdio_common_vsprintf(options: u64, buffer: *mut c_char, count: usize, format: *const c_char, locale: *mut c_void, args: *mut c_void) -> i32;
 }
 
+#[cfg(windows)]
 unsafe extern "C" fn log(level: i32, format: *const c_char, args: *mut c_void) {
     // SAFETY: libwinevbs passes a printf format and its arguments
     let text = unsafe {
@@ -126,6 +129,7 @@ unsafe extern "C" fn log(level: i32, format: *const c_char, args: *mut c_void) {
     super::log::engine_message(level, text.trim_end());
 }
 
+#[cfg(windows)]
 unsafe extern "C" fn create_object(progid: *const u16, factory: *mut c_void, object: *mut *mut c_void) -> HRESULT {
     // SAFETY: libwinevbs passes the script's ProgID, its own factory for
     // objects it has built in (or null), and where the object goes
@@ -135,6 +139,7 @@ unsafe extern "C" fn create_object(progid: *const u16, factory: *mut c_void, obj
     }
 }
 
+#[cfg(windows)]
 static CALLBACKS: Callbacks = Callbacks { log, create_object };
 
 #[allow(clippy::missing_transmute_annotations)] // each pointer becomes its field's function type

@@ -1,0 +1,22 @@
+#include <metal_stdlib>
+#include <simd/simd.h>
+
+using namespace metal;
+
+struct type_StillWeights
+{
+    float4 still_weights;
+};
+
+struct still_vs_out
+{
+    float4 gl_Position [[position]];
+};
+
+vertex still_vs_out still_vs(uint gl_VertexIndex [[vertex_id]])
+{
+    still_vs_out out = {};
+    out.gl_Position = float4((float2(float((gl_VertexIndex << 1u) & 2u), float(gl_VertexIndex & 2u)) * float2(2.0, -2.0)) + float2(-1.0, 1.0), 0.0, 1.0);
+    return out;
+}
+

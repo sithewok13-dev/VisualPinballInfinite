@@ -1,0 +1,59 @@
+#include <metal_stdlib>
+#include <simd/simd.h>
+
+using namespace metal;
+
+struct type_Overlay
+{
+    float4 screen;
+};
+
+struct type_BackdropLight
+{
+    float4 light_color_intensity;
+    float4 light_color2_power;
+    float4 light_center_range;
+    float4 light_mode;
+};
+
+constant float _37 = {};
+
+struct backdrop_bulb_fs_out
+{
+    float4 out_var_SV_Target0 [[color(0)]];
+};
+
+struct backdrop_bulb_fs_in
+{
+    float4 in_var_TEXCOORD1 [[user(locn1)]];
+};
+
+fragment backdrop_bulb_fs_out backdrop_bulb_fs(backdrop_bulb_fs_in in [[stage_in]], constant type_BackdropLight& BackdropLight [[buffer(0)]])
+{
+    backdrop_bulb_fs_out out = {};
+    float4 _102;
+    do
+    {
+        float _52 = length(BackdropLight.light_center_range.xyz - float3(in.in_var_TEXCOORD1.xy, 0.0)) * BackdropLight.light_center_range.w;
+        float3 _75 = float4(mix(BackdropLight.light_color2_power.xyz, BackdropLight.light_color_intensity.xyz, float3(sqrt(_52))) * (powr(1.0 - fast::clamp(_52, 0.0, 1.0), BackdropLight.light_color2_power.w) * BackdropLight.light_color_intensity.w), _37).xyz;
+        if (BackdropLight.light_mode.z == 2.0)
+        {
+            _102 = float4(_75 * (-BackdropLight.light_mode.y), (1.0 / BackdropLight.light_mode.y) - 1.0);
+            break;
+        }
+        float _96;
+        if (BackdropLight.light_mode.z == 0.0)
+        {
+            _96 = BackdropLight.light_mode.y;
+        }
+        else
+        {
+            _96 = 1.0 - BackdropLight.light_mode.y;
+        }
+        _102 = float4(_75 * _96, 1.0);
+        break;
+    } while(false);
+    out.out_var_SV_Target0 = _102;
+    return out;
+}
+

@@ -42,7 +42,7 @@ pub enum AmbientOcclusion {
     Dynamic,
 }
 
-const EFFECTS_HLSL: &str = include_str!("effects.hlsl");
+const EFFECTS_HLSL: &str = super::shaders::EFFECTS;
 
 /// The occlusion's pictures: one byte a texel (VPX's `GREY8`).
 pub(super) const AO_FORMAT: SDL_GPUTextureFormat = SDL_GPU_TEXTUREFORMAT_R8_UNORM;

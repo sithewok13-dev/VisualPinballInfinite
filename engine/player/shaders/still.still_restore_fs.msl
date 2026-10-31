@@ -1,0 +1,25 @@
+#include <metal_stdlib>
+#include <simd/simd.h>
+
+using namespace metal;
+
+struct type_StillWeights
+{
+    float4 still_weights;
+};
+
+struct still_restore_fs_out
+{
+    float4 out_var_SV_Target [[color(0)]];
+    float gl_FragDepth [[depth(any)]];
+};
+
+fragment still_restore_fs_out still_restore_fs(texture2d<float> still_picture [[texture(0)]], texture2d<float> still_depth [[texture(1)]], float4 gl_FragCoord [[position]])
+{
+    still_restore_fs_out out = {};
+    int2 _34 = int3(int(gl_FragCoord.x), int(gl_FragCoord.y), 0).xy;
+    out.out_var_SV_Target = still_picture.read(uint2(_34), 0);
+    out.gl_FragDepth = still_depth.read(uint2(_34), 0).x;
+    return out;
+}
+

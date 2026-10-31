@@ -1,0 +1,46 @@
+#include <metal_stdlib>
+#include <simd/simd.h>
+
+using namespace metal;
+
+struct type_Bloom
+{
+    float4 bloom_w_h_height;
+};
+
+struct type_Kernel
+{
+    float4 kernel_offset[3];
+    float4 kernel_weight[3];
+    float4 kernel_taps;
+};
+
+struct blur_v_fs_out
+{
+    float4 out_var_SV_Target0 [[color(0)]];
+};
+
+struct blur_v_fs_in
+{
+    float2 in_var_TEXCOORD0 [[user(locn0)]];
+};
+
+fragment blur_v_fs_out blur_v_fs(blur_v_fs_in in [[stage_in]], constant type_Bloom& Bloom [[buffer(0)]], texture2d<float> bloom_source [[texture(0)]], sampler bloom_sampler [[sampler(0)]])
+{
+    blur_v_fs_out out = {};
+    float2 _58 = float2(0.0, Bloom.bloom_w_h_height.y);
+    float2 _59 = _58 * 0.6606299877166748046875;
+    float2 _74 = _58 * 2.466249942779541015625;
+    float2 _90 = _58 * 4.43945980072021484375;
+    float2 _106 = _58 * 6.413010120391845703125;
+    float2 _122 = _58 * 8.3870601654052734375;
+    float2 _138 = _58 * 10.36172962188720703125;
+    float2 _154 = _58 * 12.33714962005615234375;
+    float2 _170 = _58 * 14.3134098052978515625;
+    float3 _185 = ((((((((bloom_source.sample(bloom_sampler, (in.in_var_TEXCOORD0 + _59), level(0.0)).xyz + bloom_source.sample(bloom_sampler, (in.in_var_TEXCOORD0 - _59), level(0.0)).xyz) * 0.13669000566005706787109375) + ((bloom_source.sample(bloom_sampler, (in.in_var_TEXCOORD0 + _74), level(0.0)).xyz + bloom_source.sample(bloom_sampler, (in.in_var_TEXCOORD0 - _74), level(0.0)).xyz) * 0.15600000321865081787109375)) + ((bloom_source.sample(bloom_sampler, (in.in_var_TEXCOORD0 + _90), level(0.0)).xyz + bloom_source.sample(bloom_sampler, (in.in_var_TEXCOORD0 - _90), level(0.0)).xyz) * 0.1073800027370452880859375)) + ((bloom_source.sample(bloom_sampler, (in.in_var_TEXCOORD0 + _106), level(0.0)).xyz + bloom_source.sample(bloom_sampler, (in.in_var_TEXCOORD0 - _106), level(0.0)).xyz) * 0.0597099997103214263916015625)) + ((bloom_source.sample(bloom_sampler, (in.in_var_TEXCOORD0 + _122), level(0.0)).xyz + bloom_source.sample(bloom_sampler, (in.in_var_TEXCOORD0 - _122), level(0.0)).xyz) * 0.0268200002610683441162109375)) + ((bloom_source.sample(bloom_sampler, (in.in_var_TEXCOORD0 + _138), level(0.0)).xyz + bloom_source.sample(bloom_sampler, (in.in_var_TEXCOORD0 - _138), level(0.0)).xyz) * 0.0097300000488758087158203125)) + ((bloom_source.sample(bloom_sampler, (in.in_var_TEXCOORD0 + _154), level(0.0)).xyz + bloom_source.sample(bloom_sampler, (in.in_var_TEXCOORD0 - _154), level(0.0)).xyz) * 0.00285000004805624485015869140625)) + ((bloom_source.sample(bloom_sampler, (in.in_var_TEXCOORD0 + _170), level(0.0)).xyz + bloom_source.sample(bloom_sampler, (in.in_var_TEXCOORD0 - _170), level(0.0)).xyz) * 0.000669999979436397552490234375);
+    float2 _186 = _58 * 16.2906208038330078125;
+    float2 _202 = _58 * 18.268840789794921875;
+    out.out_var_SV_Target0 = float4((_185 + ((bloom_source.sample(bloom_sampler, (in.in_var_TEXCOORD0 + _186), level(0.0)).xyz + bloom_source.sample(bloom_sampler, (in.in_var_TEXCOORD0 - _186), level(0.0)).xyz) * 0.0001300000003539025783538818359375)) + ((bloom_source.sample(bloom_sampler, (in.in_var_TEXCOORD0 + _202), level(0.0)).xyz + bloom_source.sample(bloom_sampler, (in.in_var_TEXCOORD0 - _202), level(0.0)).xyz) * 1.9999999494757503271102905273438e-05), 1.0);
+    return out;
+}
+

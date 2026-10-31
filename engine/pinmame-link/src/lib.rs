@@ -15,6 +15,7 @@
 //! BSD-3-Clause, not GPL: `vpi-pinmame` links PinMAME and uses this crate.
 
 mod layout;
+#[cfg_attr(not(windows), path = "elsewhere.rs")]
 mod win;
 
 use std::io;
@@ -57,6 +58,9 @@ impl Link {
     /// The engine's end: a new link of that name, for one game. A name in
     /// the `Local\` namespace keeps it to the current Windows session.
     pub fn create(name: &str) -> io::Result<Link> {
+        if cfg!(not(windows)) {
+            return Err(io::Error::new(io::ErrorKind::Unsupported, format!("{name}: links to a host are made only on Windows so far")));
+        }
         let size = size_of::<Shared>();
         // SAFETY: a page-file-backed mapping of `size` bytes, which Windows zeroes
         let mapping =
@@ -76,6 +80,9 @@ impl Link {
 
     /// The host's end: the link the engine made.
     pub fn open(name: &str) -> io::Result<Link> {
+        if cfg!(not(windows)) {
+            return Err(io::Error::new(io::ErrorKind::Unsupported, format!("{name}: links to a host are made only on Windows so far")));
+        }
         // SAFETY: plain Windows calls with a null-terminated name
         let mapping = unsafe { win::OpenFileMappingW(win::FILE_MAP_ALL_ACCESS, 0, win::wide(name).as_ptr()) };
         if mapping.is_null() {
@@ -160,7 +167,8 @@ impl Drop for Link {
     }
 }
 
-#[cfg(test)]
+// each opens a link, made only on Windows so far
+#[cfg(all(test, windows))]
 mod tests {
     use super::*;
 

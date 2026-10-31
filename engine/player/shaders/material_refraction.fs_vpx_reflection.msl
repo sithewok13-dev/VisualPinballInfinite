@@ -1,0 +1,59 @@
+#include <metal_stdlib>
+#include <simd/simd.h>
+
+using namespace metal;
+
+struct type_VpxMaterial
+{
+    float4 cBase_Alpha;
+    float4 cGlossy_ImageLerp;
+    float4 cClearcoat_EdgeAlpha;
+    float4 Roughness_WrapL_Edge_Thickness;
+    float4 fDisableLighting_top_below;
+    float4 staticColor_Alpha;
+    float4 vpx_flags;
+    float4 mirrorNormal_factor;
+    float4 normal_map_flags;
+    float4 object_normal[3];
+};
+
+struct type_VpxScene
+{
+    float4 fenvEmissionScale_TexWidth;
+    float4 cAmbient_LightRange;
+    float4 lightPos[2];
+    float4 lightEmission[2];
+    float4 w_h_transmission;
+    float4 view_rows[3];
+};
+
+struct type_VpxRefraction
+{
+    float4x4 refraction_view_proj;
+    float4 refractionTint_thickness;
+    float4 refraction_flags;
+};
+
+struct type_BallShadows
+{
+    float4 lightCenter_doShadow;
+    float4 balls[8];
+};
+
+struct fs_vpx_reflection_out
+{
+    float4 out_var_SV_Target0 [[color(0)]];
+};
+
+struct fs_vpx_reflection_in
+{
+    float3 in_var_TEXCOORD1 [[user(locn1)]];
+};
+
+fragment fs_vpx_reflection_out fs_vpx_reflection(fs_vpx_reflection_in in [[stage_in]], constant type_VpxMaterial& VpxMaterial [[buffer(0)]], constant type_VpxScene& VpxScene [[buffer(1)]], texture2d<float> tex_reflection [[texture(4)]], sampler reflection_sampler [[sampler(4)]], float4 gl_FragCoord [[position]])
+{
+    fs_vpx_reflection_out out = {};
+    out.out_var_SV_Target0 = float4((tex_reflection.sample(reflection_sampler, ((gl_FragCoord.xy + float2(0.5)) * VpxScene.w_h_transmission.xy)).xyz * (smoothstep(0.5, 0.89999997615814208984375, dot(VpxMaterial.mirrorNormal_factor.xyz, fast::normalize(in.in_var_TEXCOORD1))) * VpxMaterial.mirrorNormal_factor.w)) * VpxMaterial.staticColor_Alpha.xyz, VpxMaterial.staticColor_Alpha.w);
+    return out;
+}
+

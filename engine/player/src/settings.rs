@@ -325,7 +325,7 @@ pub unsafe fn physical_size_cm(id: sdl3_sys::everything::SDL_DisplayID) -> Optio
 /// # Safety
 /// None needed.
 #[cfg(not(windows))]
-pub unsafe fn physical_size_cm(_id: u32) -> Option<(f32, f32)> {
+pub unsafe fn physical_size_cm(_id: sdl3_sys::everything::SDL_DisplayID) -> Option<(f32, f32)> {
     None
 }
 

@@ -1,0 +1,357 @@
+#include <metal_stdlib>
+#include <simd/simd.h>
+
+using namespace metal;
+
+struct type_Post
+{
+    float4 w_h_height;
+    float4 post_flags;
+};
+
+struct fxaa2_fs_out
+{
+    float4 out_var_SV_Target [[color(0)]];
+};
+
+fragment fxaa2_fs_out fxaa2_fs(constant type_Post& Post [[buffer(0)]], texture2d<float> post_source [[texture(0)]], texture2d<float> post_depth [[texture(1)]], sampler post_linear_sampler [[sampler(0)]], sampler post_point_sampler [[sampler(1)]], float4 gl_FragCoord [[position]])
+{
+    fxaa2_fs_out out = {};
+    float2 _63 = gl_FragCoord.xy * Post.w_h_height.xy;
+    float3 _422;
+    do
+    {
+        float3 _70 = post_source.sample(post_linear_sampler, _63, level(0.0)).xyz;
+        bool _88;
+        do
+        {
+            if (Post.w_h_height.w == 1.0)
+            {
+                float4 _81 = post_depth.sample(post_point_sampler, _63, level(0.0));
+                float _82 = _81.x;
+                bool _87;
+                if (_82 != 1.0)
+                {
+                    _87 = _82 == 0.0;
+                }
+                else
+                {
+                    _87 = true;
+                }
+                _88 = _87;
+                break;
+            }
+            _88 = false;
+            break;
+        } while(false);
+        if (_88)
+        {
+            _422 = _70;
+            break;
+        }
+        float _97 = dot(post_source.sample(post_linear_sampler, (_63 - Post.w_h_height.xy), level(0.0)).xyz, float3(0.25, 0.5, 0.25));
+        float2 _101 = float2(0.0, Post.w_h_height.y);
+        float _106 = dot(post_source.sample(post_linear_sampler, (_63 - _101), level(0.0)).xyz, float3(0.25, 0.5, 0.25));
+        float2 _111 = float2(-Post.w_h_height.x, Post.w_h_height.y);
+        float _116 = dot(post_source.sample(post_linear_sampler, (_63 - _111), level(0.0)).xyz, float3(0.25, 0.5, 0.25));
+        float2 _119 = float2(Post.w_h_height.x, 0.0);
+        float _124 = dot(post_source.sample(post_linear_sampler, (_63 - _119), level(0.0)).xyz, float3(0.25, 0.5, 0.25));
+        float _125 = dot(_70, float3(0.25, 0.5, 0.25));
+        float _132 = dot(post_source.sample(post_linear_sampler, (_63 + _119), level(0.0)).xyz, float3(0.25, 0.5, 0.25));
+        float _139 = dot(post_source.sample(post_linear_sampler, (_63 + _111), level(0.0)).xyz, float3(0.25, 0.5, 0.25));
+        float _146 = dot(post_source.sample(post_linear_sampler, (_63 + _101), level(0.0)).xyz, float3(0.25, 0.5, 0.25));
+        float _153 = dot(post_source.sample(post_linear_sampler, (_63 + Post.w_h_height.xy), level(0.0)).xyz, float3(0.25, 0.5, 0.25));
+        float _160 = precise::max(precise::max(_106, _124), precise::max(_132, precise::max(_146, _125)));
+        float _163 = _160 - precise::min(precise::min(_106, _124), precise::min(_132, precise::min(_146, _125)));
+        if (_163 < precise::max(0.083300001919269561767578125, _160 * 0.125))
+        {
+            _422 = _70;
+            break;
+        }
+        float _168 = _106 + _146;
+        float _169 = _124 + _132;
+        float _172 = (-2.0) * _125;
+        float _175 = _116 + _153;
+        float _181 = _97 + _139;
+        bool _200 = (abs(((-2.0) * _124) + _181) + ((abs(_172 + _168) * 2.0) + abs(((-2.0) * _132) + _175))) >= (abs(((-2.0) * _146) + (_139 + _153)) + ((abs(_172 + _169) * 2.0) + abs(((-2.0) * _106) + (_97 + _116))));
+        bool _203 = !_200;
+        float _204 = _203 ? _124 : _106;
+        float _205 = _203 ? _132 : _146;
+        float _206 = _200 ? Post.w_h_height.y : Post.w_h_height.x;
+        float _213 = abs(_204 - _125);
+        float _214 = abs(_205 - _125);
+        bool _215 = _213 >= _214;
+        float _220;
+        if (_215)
+        {
+            _220 = -_206;
+        }
+        else
+        {
+            _220 = _206;
+        }
+        float _223 = fast::clamp(abs(((((_168 + _169) * 2.0) + (_181 + _175)) * 0.083333335816860198974609375) - _125) * (1.0 / _163), 0.0, 1.0);
+        float _224 = _203 ? 0.0 : Post.w_h_height.x;
+        float _225 = _200 ? 0.0 : Post.w_h_height.y;
+        float _226 = _220 * 0.5;
+        float2 _236;
+        if (_200)
+        {
+            float2 _232 = _63;
+            _232.y = _63.y + _226;
+            _236 = _232;
+        }
+        else
+        {
+            float2 _235 = _63;
+            _235.x = _63.x + _226;
+            _236 = _235;
+        }
+        float _238 = _224 * 1.5;
+        float _239 = _236.x - _238;
+        float _241 = _225 * 1.5;
+        float2 _243 = float2(_239, _236.y - _241);
+        float _244 = _236.x + _238;
+        float2 _246 = float2(_244, _236.y + _241);
+        float _264 = precise::max(_213, _214) * 0.25;
+        float _265 = ((!_215) ? (_205 + _125) : (_204 + _125)) * 0.5;
+        float _267 = (((-2.0) * _223) + 3.0) * (_223 * _223);
+        bool _268 = (_125 - _265) < 0.0;
+        float _269 = dot(post_source.sample(post_linear_sampler, _243, level(0.0)).xyz, float3(0.25, 0.5, 0.25)) - _265;
+        float _270 = dot(post_source.sample(post_linear_sampler, _246, level(0.0)).xyz, float3(0.25, 0.5, 0.25)) - _265;
+        bool _272 = abs(_269) >= _264;
+        bool _274 = abs(_270) >= _264;
+        bool _275 = !_272;
+        float2 _281;
+        if (_275)
+        {
+            float2 _280 = _243;
+            _280.x = _239 - (_224 * 2.0);
+            _281 = _280;
+        }
+        else
+        {
+            _281 = _243;
+        }
+        float2 _288;
+        if (_275)
+        {
+            float2 _287 = _281;
+            _287.y = _281.y - (_225 * 2.0);
+            _288 = _287;
+        }
+        else
+        {
+            _288 = _281;
+        }
+        bool _292;
+        if (_272)
+        {
+            _292 = !_274;
+        }
+        else
+        {
+            _292 = true;
+        }
+        bool _293 = !_274;
+        float2 _299;
+        if (_293)
+        {
+            float2 _298 = _246;
+            _298.x = _244 + (_224 * 2.0);
+            _299 = _298;
+        }
+        else
+        {
+            _299 = _246;
+        }
+        float2 _306;
+        if (_293)
+        {
+            float2 _305 = _299;
+            _305.y = _299.y + (_225 * 2.0);
+            _306 = _305;
+        }
+        else
+        {
+            _306 = _299;
+        }
+        float2 _367;
+        float2 _368;
+        float _369;
+        float _370;
+        if (_292)
+        {
+            float _317;
+            if (_275)
+            {
+                _317 = dot(post_source.sample(post_linear_sampler, _288, level(0.0)).xyz, float3(0.25, 0.5, 0.25));
+            }
+            else
+            {
+                _317 = _269;
+            }
+            float _326;
+            if (_293)
+            {
+                _326 = dot(post_source.sample(post_linear_sampler, _306, level(0.0)).xyz, float3(0.25, 0.5, 0.25));
+            }
+            else
+            {
+                _326 = _270;
+            }
+            float _330;
+            if (_275)
+            {
+                _330 = _317 - _265;
+            }
+            else
+            {
+                _330 = _317;
+            }
+            float _334;
+            if (_293)
+            {
+                _334 = _326 - _265;
+            }
+            else
+            {
+                _334 = _326;
+            }
+            float _335 = abs(_330);
+            float _336 = abs(_334);
+            bool _337 = (isunordered(_335, _264) || _335 < _264);
+            float2 _344;
+            if (_337)
+            {
+                float2 _343 = _288;
+                _343.x = _288.x - (_224 * 8.0);
+                _344 = _343;
+            }
+            else
+            {
+                _344 = _288;
+            }
+            float2 _351;
+            if (_337)
+            {
+                float2 _350 = _344;
+                _350.y = _344.y - (_225 * 8.0);
+                _351 = _350;
+            }
+            else
+            {
+                _351 = _344;
+            }
+            bool _352 = (isunordered(_336, _264) || _336 < _264);
+            float2 _359;
+            if (_352)
+            {
+                float2 _358 = _306;
+                _358.x = _306.x + (_224 * 8.0);
+                _359 = _358;
+            }
+            else
+            {
+                _359 = _306;
+            }
+            float2 _366;
+            if (_352)
+            {
+                float2 _365 = _359;
+                _365.y = _359.y + (_225 * 8.0);
+                _366 = _365;
+            }
+            else
+            {
+                _366 = _359;
+            }
+            _367 = _366;
+            _368 = _351;
+            _369 = _334;
+            _370 = _330;
+        }
+        else
+        {
+            _367 = _306;
+            _368 = _288;
+            _369 = _270;
+            _370 = _269;
+        }
+        float _380;
+        if (_200)
+        {
+            _380 = _63.x - _368.x;
+        }
+        else
+        {
+            _380 = _63.y - _368.y;
+        }
+        float _390;
+        if (_200)
+        {
+            _390 = _367.x - _63.x;
+        }
+        else
+        {
+            _390 = _367.y - _63.y;
+        }
+        float _406 = precise::max(((_380 < _390) ? ((_370 < 0.0) != _268) : ((_369 < 0.0) != _268)) ? (0.5 - (precise::min(_380, _390) * (1.0 / (_390 + _380)))) : 0.0, (_267 * _267) * 0.5) * _220;
+        float2 _416;
+        if (_200)
+        {
+            float2 _412 = _63;
+            _412.y = _63.y + _406;
+            _416 = _412;
+        }
+        else
+        {
+            float2 _415 = _63;
+            _415.x = _63.x + _406;
+            _416 = _415;
+        }
+        _422 = post_source.sample(post_linear_sampler, _416, level(0.0)).xyz;
+        break;
+    } while(false);
+    float3 _459;
+    if (Post.post_flags.x != 0.0)
+    {
+        float3 _429 = _422 * 0.077399380505084991455078125;
+        float3 _433 = powr(precise::max((_422 * 0.94786727428436279296875) + float3(0.0521326996386051177978515625), float3(0.0)), float3(2.400000095367431640625));
+        float _441;
+        if (_422.x <= 0.040449999272823333740234375)
+        {
+            _441 = _429.x;
+        }
+        else
+        {
+            _441 = _433.x;
+        }
+        float _449;
+        if (_422.y <= 0.040449999272823333740234375)
+        {
+            _449 = _429.y;
+        }
+        else
+        {
+            _449 = _433.y;
+        }
+        float _457;
+        if (_422.z <= 0.040449999272823333740234375)
+        {
+            _457 = _429.z;
+        }
+        else
+        {
+            _457 = _433.z;
+        }
+        _459 = float3(_441, _449, _457);
+    }
+    else
+    {
+        _459 = _422;
+    }
+    out.out_var_SV_Target = float4(_459, 1.0);
+    return out;
+}
+

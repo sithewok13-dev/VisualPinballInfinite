@@ -1,0 +1,510 @@
+#include <metal_stdlib>
+#include <simd/simd.h>
+
+using namespace metal;
+
+struct type_Post
+{
+    float4 w_h_height;
+    float4 post_flags;
+};
+
+struct type_PostVertex
+{
+    float4 smaa_vs_metrics;
+};
+
+constant float4 _146 = {};
+constant float2 _147 = {};
+constant float4 _148 = {};
+constant float3 _149 = {};
+constant float2 _150 = {};
+
+struct smaa_weight_fs_out
+{
+    float4 out_var_SV_Target [[color(0)]];
+};
+
+struct smaa_weight_fs_in
+{
+    float2 in_var_TEXCOORD0 [[user(locn0)]];
+    float2 in_var_TEXCOORD1 [[user(locn1)]];
+    float4 in_var_TEXCOORD2 [[user(locn2)]];
+    float4 in_var_TEXCOORD3 [[user(locn3)]];
+    float4 in_var_TEXCOORD4 [[user(locn4)]];
+};
+
+fragment smaa_weight_fs_out smaa_weight_fs(smaa_weight_fs_in in [[stage_in]], constant type_Post& Post [[buffer(0)]], texture2d<float> smaa_first [[texture(0)]], texture2d<float> smaa_second [[texture(1)]], texture2d<float> smaa_third [[texture(2)]], sampler post_linear_sampler [[sampler(0)]])
+{
+    smaa_weight_fs_out out = {};
+    float4 _163 = smaa_first.sample(post_linear_sampler, in.in_var_TEXCOORD0);
+    float2 _164 = _163.xy;
+    float4 _567;
+    float2 _568;
+    if (_163.y > 0.0)
+    {
+        float2 _209;
+        float4 _210;
+        if (_163.x > 0.0)
+        {
+            float3 _179 = float3(Post.w_h_height.xy, 1.0);
+            float2 _181;
+            float4 _184;
+            _181 = _147;
+            _184 = float4(in.in_var_TEXCOORD0, -1.0, 1.0);
+            float _188;
+            for (;;)
+            {
+                _188 = _184.z;
+                bool _194;
+                if (_188 < 15.0)
+                {
+                    _194 = _184.w > 0.89999997615814208984375;
+                }
+                else
+                {
+                    _194 = false;
+                }
+                if (_194)
+                {
+                    float3 _27 = fma(_179, float3(-1.0, 1.0, 1.0), _184.xyz);
+                    float4 _196 = float4(_27.x, _27.y, _27.z, _184.w);
+                    float2 _182 = smaa_first.sample(post_linear_sampler, _27.xy, level(0.0)).xy;
+                    _196.w = dot(_182, float2(0.5));
+                    _181 = _182;
+                    _184 = _196;
+                    continue;
+                }
+                else
+                {
+                    break;
+                }
+            }
+            float4 _202 = float4(_184.z, _146.y, _184.w, _146.w);
+            _202.x = _188 + float(_181.y > 0.89999997615814208984375);
+            _209 = _181;
+            _210 = _202;
+        }
+        else
+        {
+            _209 = _147;
+            _210 = float4(float2(0.0).x, _146.y, float2(0.0).y, _146.w);
+        }
+        float4 _213 = float4(in.in_var_TEXCOORD0, -1.0, 1.0);
+        float3 _216 = float3(Post.w_h_height.xy, 1.0);
+        float2 _218;
+        float4 _221;
+        _218 = _209;
+        _221 = _213;
+        float _225;
+        for (;;)
+        {
+            _225 = _221.z;
+            bool _231;
+            if (_225 < 15.0)
+            {
+                _231 = _221.w > 0.89999997615814208984375;
+            }
+            else
+            {
+                _231 = false;
+            }
+            if (_231)
+            {
+                float3 _28 = fma(_216, float3(1.0, -1.0, 1.0), _221.xyz);
+                float4 _233 = float4(_28.x, _28.y, _28.z, _221.w);
+                float2 _219 = smaa_first.sample(post_linear_sampler, _28.xy, level(0.0)).xy;
+                _233.w = dot(_219, float2(0.5));
+                _218 = _219;
+                _221 = _233;
+                continue;
+            }
+            else
+            {
+                break;
+            }
+        }
+        float2 _290;
+        if ((_210.x + _225) > 2.0)
+        {
+            float4 _23 = fma(float4(0.25 - _210.x, _210.x, _225, (-0.25) - _225), Post.w_h_height.xyxy, in.in_var_TEXCOORD0.xyxy);
+            float4 _253 = smaa_first.sample(post_linear_sampler, _23.xy, level(0.0), int2(-1, 0));
+            float4 _257 = smaa_first.sample(post_linear_sampler, _23.zw, level(0.0), int2(1, 0));
+            float4 _258 = float4(_253.x, _253.y, _257.x, _257.y);
+            float2 _259 = _258.xz;
+            float2 _263 = _259 * abs((_259 * 5.0) - float2(3.75));
+            float4 _265 = rint(float4(_263.x, _258.y, _263.y, _258.w));
+            float2 _24 = fma(float2(2.0), _265.yw, _265.xz);
+            bool2 _270 = step(float2(0.89999997615814208984375), float4(_210.x, _221.z, _210.z, _221.w).zw) != float2(0.0);
+            float2 _275;
+            if (_270.x)
+            {
+                float2 _274 = _24;
+                _274.x = 0.0;
+                _275 = _274;
+            }
+            else
+            {
+                _275 = _24;
+            }
+            float2 _280;
+            if (_270.y)
+            {
+                float2 _279 = _275;
+                _279.y = 0.0;
+                _280 = _279;
+            }
+            else
+            {
+                _280 = _275;
+            }
+            float2 _30 = fma(float2(0.0062500000931322574615478515625, 0.001785714295692741870880126953125), fma(float2(20.0), _280, float4(_210.x, _221.z, _210.z, _221.w).xy), float2(0.00312500004656612873077392578125, 0.0008928571478463709354400634765625));
+            _290 = smaa_second.sample(post_linear_sampler, float2(_30.x + 0.5, _30.y), level(0.0)).xy;
+        }
+        else
+        {
+            _290 = float2(0.0);
+        }
+        _213.x = in.in_var_TEXCOORD0.x + (0.25 * Post.w_h_height.x);
+        float2 _295;
+        float4 _298;
+        _295 = _218;
+        _298 = _213;
+        for (;;)
+        {
+            bool _308;
+            if (_298.z < 15.0)
+            {
+                _308 = _298.w > 0.89999997615814208984375;
+            }
+            else
+            {
+                _308 = false;
+            }
+            if (_308)
+            {
+                float3 _31 = fma(_216, float3(-1.0, -1.0, 1.0), _298.xyz);
+                float4 _310 = float4(_31.x, _31.y, _31.z, _298.w);
+                float4 _314 = smaa_first.sample(post_linear_sampler, _31.xy, level(0.0));
+                float2 _315 = _314.xy;
+                float _316 = _314.x;
+                _315.x = _316 * abs((5.0 * _316) - 3.75);
+                float2 _296 = rint(_315);
+                _310.w = dot(_296, float2(0.5));
+                _295 = _296;
+                _298 = _310;
+                continue;
+            }
+            else
+            {
+                break;
+            }
+        }
+        float4 _367;
+        if (smaa_first.sample(post_linear_sampler, in.in_var_TEXCOORD0, level(0.0), int2(1, 0)).x > 0.0)
+        {
+            float2 _332;
+            float4 _335;
+            _332 = _295;
+            _335 = _213;
+            float _339;
+            for (;;)
+            {
+                _339 = _335.z;
+                bool _345;
+                if (_339 < 15.0)
+                {
+                    _345 = _335.w > 0.89999997615814208984375;
+                }
+                else
+                {
+                    _345 = false;
+                }
+                if (_345)
+                {
+                    float3 _32 = fma(_216, float3(1.0), _335.xyz);
+                    float4 _347 = float4(_32.x, _32.y, _32.z, _335.w);
+                    float4 _351 = smaa_first.sample(post_linear_sampler, _32.xy, level(0.0));
+                    float2 _352 = _351.xy;
+                    float _353 = _351.x;
+                    _352.x = _353 * abs((5.0 * _353) - 3.75);
+                    float2 _333 = rint(_352);
+                    _347.w = dot(_333, float2(0.5));
+                    _332 = _333;
+                    _335 = _347;
+                    continue;
+                }
+                else
+                {
+                    break;
+                }
+            }
+            float4 _360 = float4(_298.z, _335.z, _298.w, _335.w);
+            _360.y = _339 + float(_332.y > 0.89999997615814208984375);
+            _367 = _360;
+        }
+        else
+        {
+            _367 = float4(_298.z, float2(0.0).x, _298.w, float2(0.0).y);
+        }
+        float2 _419;
+        if ((_367.x + _367.y) > 2.0)
+        {
+            float _374 = -_367.x;
+            float4 _25 = fma(float4(_374, _374, _367.yy), Post.w_h_height.xyxy, in.in_var_TEXCOORD0.xyxy);
+            float2 _379 = _25.xy;
+            float4 _383;
+            _383.x = smaa_first.sample(post_linear_sampler, _379, level(0.0), int2(-1, 0)).y;
+            _383.y = smaa_first.sample(post_linear_sampler, _379, level(0.0), int2(0, -1)).x;
+            float4 _392 = smaa_first.sample(post_linear_sampler, _25.zw, level(0.0), int2(1, 0));
+            float4 _393 = float4(_383.x, _383.y, _392.y, _392.x);
+            float2 _26 = fma(float2(2.0), _393.xz, _393.yw);
+            bool2 _398 = step(float2(0.89999997615814208984375), _367.zw) != float2(0.0);
+            float2 _403;
+            if (_398.x)
+            {
+                float2 _402 = _26;
+                _402.x = 0.0;
+                _403 = _402;
+            }
+            else
+            {
+                _403 = _26;
+            }
+            float2 _408;
+            if (_398.y)
+            {
+                float2 _407 = _403;
+                _407.y = 0.0;
+                _408 = _407;
+            }
+            else
+            {
+                _408 = _403;
+            }
+            float2 _34 = fma(float2(0.0062500000931322574615478515625, 0.001785714295692741870880126953125), fma(float2(20.0), _408, _367.xy), float2(0.00312500004656612873077392578125, 0.0008928571478463709354400634765625));
+            _419 = _290 + smaa_second.sample(post_linear_sampler, float2(_34.x + 0.5, _34.y), level(0.0)).yx;
+        }
+        else
+        {
+            _419 = _290;
+        }
+        float4 _565;
+        float2 _566;
+        if (_419.x == (-_419.y))
+        {
+            float2 _432;
+            float2 _435;
+            _432 = float2(0.0, 1.0);
+            _435 = in.in_var_TEXCOORD2.xy;
+            float _438;
+            for (;;)
+            {
+                _438 = _435.x;
+                bool _444;
+                if (_438 > in.in_var_TEXCOORD4.x)
+                {
+                    _444 = _432.y > 0.828100025653839111328125;
+                }
+                else
+                {
+                    _444 = false;
+                }
+                bool _449;
+                if (_444)
+                {
+                    _449 = _432.x == 0.0;
+                }
+                else
+                {
+                    _449 = false;
+                }
+                if (_449)
+                {
+                    _432 = smaa_first.sample(post_linear_sampler, _435, level(0.0)).xy;
+                    _435 = fma(float2(-2.0, -0.0), Post.w_h_height.xy, _435);
+                    continue;
+                }
+                else
+                {
+                    break;
+                }
+            }
+            float _37 = fma(Post.w_h_height.x, fma(-2.007874011993408203125, smaa_third.sample(post_linear_sampler, fma(float2(0.5, -2.0), _432, float2(0.0078125, 2.03125)), level(0.0)).x, 3.25), _438);
+            float3 _458;
+            _458.x = _37;
+            _458.y = in.in_var_TEXCOORD3.y;
+            float2 _471;
+            float2 _474;
+            _471 = float2(0.0, 1.0);
+            _474 = in.in_var_TEXCOORD2.zw;
+            float _477;
+            for (;;)
+            {
+                _477 = _474.x;
+                bool _483;
+                if (_477 < in.in_var_TEXCOORD4.y)
+                {
+                    _483 = _471.y > 0.828100025653839111328125;
+                }
+                else
+                {
+                    _483 = false;
+                }
+                bool _488;
+                if (_483)
+                {
+                    _488 = _471.x == 0.0;
+                }
+                else
+                {
+                    _488 = false;
+                }
+                if (_488)
+                {
+                    _471 = smaa_first.sample(post_linear_sampler, _474, level(0.0)).xy;
+                    _474 = fma(float2(2.0, 0.0), Post.w_h_height.xy, _474);
+                    continue;
+                }
+                else
+                {
+                    break;
+                }
+            }
+            float _41 = fma(-Post.w_h_height.x, fma(-2.007874011993408203125, smaa_third.sample(post_linear_sampler, fma(float2(0.5, -2.0), _471, float2(0.5234375, 2.03125)), level(0.0)).x, 3.25), _477);
+            float3 _498 = float3(_37, in.in_var_TEXCOORD3.y, _41);
+            float2 _504 = abs(rint(fma(Post.w_h_height.zz, float2(_37, _41), -in.in_var_TEXCOORD1.xx)));
+            float2 _44 = fma(float2(0.0062500000931322574615478515625, 0.001785714295692741870880126953125), fma(float2(16.0), rint(float2(smaa_first.sample(post_linear_sampler, _458.xy, level(0.0)).x, smaa_first.sample(post_linear_sampler, _498.zy, level(0.0), int2(1, 0)).x) * 4.0), sqrt(_504)), float2(0.00312500004656612873077392578125, 0.0008928571478463709354400634765625));
+            _44.y = fma(0.14285714924335479736328125, 0.0, _44.y);
+            _498.y = in.in_var_TEXCOORD0.y;
+            float2 _524 = step(_504, _504.yx);
+            float2 _530 = (_524 * 0.75) / float2(_524.x + _524.y);
+            float _531 = _530.x;
+            float _539 = _530.y;
+            float _552 = 1.0 - (_531 * smaa_first.sample(post_linear_sampler, _498.xy, level(0.0), int2(0, -2)).x);
+            float2 _553 = float2((1.0 - (_531 * smaa_first.sample(post_linear_sampler, _498.xy, level(0.0), int2(0, 1)).x)) - (_539 * smaa_first.sample(post_linear_sampler, _498.zy, level(0.0), int2(1)).x), _552);
+            _553.y = _552 - (_539 * smaa_first.sample(post_linear_sampler, _498.zy, level(0.0), int2(1, -2)).x);
+            float2 _562 = smaa_second.sample(post_linear_sampler, _44, level(0.0)).xy * fast::clamp(_553, float2(0.0), float2(1.0));
+            _565 = float4(_562.x, _562.y, float4(0.0).z, float4(0.0).w);
+            _566 = _164;
+        }
+        else
+        {
+            float2 _564;
+            _564.x = 0.0;
+            _565 = float4(_419.x, _419.y, float4(0.0).z, float4(0.0).w);
+            _566 = _564;
+        }
+        _567 = _565;
+        _568 = _566;
+    }
+    else
+    {
+        _567 = float4(0.0);
+        _568 = _164;
+    }
+    float4 _712;
+    if (_568.x > 0.0)
+    {
+        float2 _577;
+        float2 _580;
+        _577 = float2(1.0, 0.0);
+        _580 = in.in_var_TEXCOORD3.xy;
+        float _583;
+        for (;;)
+        {
+            _583 = _580.y;
+            bool _589;
+            if (_583 > in.in_var_TEXCOORD4.z)
+            {
+                _589 = _577.x > 0.828100025653839111328125;
+            }
+            else
+            {
+                _589 = false;
+            }
+            bool _594;
+            if (_589)
+            {
+                _594 = _577.y == 0.0;
+            }
+            else
+            {
+                _594 = false;
+            }
+            if (_594)
+            {
+                _577 = smaa_first.sample(post_linear_sampler, _580, level(0.0)).xy;
+                _580 = fma(float2(-0.0, -2.0), Post.w_h_height.xy, _580);
+                continue;
+            }
+            else
+            {
+                break;
+            }
+        }
+        float _48 = fma(Post.w_h_height.y, fma(-2.007874011993408203125, smaa_third.sample(post_linear_sampler, fma(float2(0.5, -2.0), _577.yx, float2(0.0078125, 2.03125)), level(0.0)).x, 3.25), _583);
+        float3 _605;
+        _605.y = _48;
+        _605.x = in.in_var_TEXCOORD2.x;
+        float2 _618;
+        float2 _621;
+        _618 = float2(1.0, 0.0);
+        _621 = in.in_var_TEXCOORD3.zw;
+        float _624;
+        for (;;)
+        {
+            _624 = _621.y;
+            bool _630;
+            if (_624 < in.in_var_TEXCOORD4.w)
+            {
+                _630 = _618.x > 0.828100025653839111328125;
+            }
+            else
+            {
+                _630 = false;
+            }
+            bool _635;
+            if (_630)
+            {
+                _635 = _618.y == 0.0;
+            }
+            else
+            {
+                _635 = false;
+            }
+            if (_635)
+            {
+                _618 = smaa_first.sample(post_linear_sampler, _621, level(0.0)).xy;
+                _621 = fma(float2(0.0, 2.0), Post.w_h_height.xy, _621);
+                continue;
+            }
+            else
+            {
+                break;
+            }
+        }
+        float _52 = fma(-Post.w_h_height.y, fma(-2.007874011993408203125, smaa_third.sample(post_linear_sampler, fma(float2(0.5, -2.0), _618.yx, float2(0.5234375, 2.03125)), level(0.0)).x, 3.25), _624);
+        float3 _646 = float3(in.in_var_TEXCOORD2.x, _48, _52);
+        float2 _652 = abs(rint(fma(Post.w_h_height.ww, float2(_48, _52), -in.in_var_TEXCOORD1.yy)));
+        float2 _55 = fma(float2(0.0062500000931322574615478515625, 0.001785714295692741870880126953125), fma(float2(16.0), rint(float2(smaa_first.sample(post_linear_sampler, _605.xy, level(0.0)).y, smaa_first.sample(post_linear_sampler, _646.xz, level(0.0), int2(0, 1)).y) * 4.0), sqrt(_652)), float2(0.00312500004656612873077392578125, 0.0008928571478463709354400634765625));
+        _55.y = fma(0.14285714924335479736328125, 0.0, _55.y);
+        _646.x = in.in_var_TEXCOORD0.x;
+        float2 _672 = step(_652, _652.yx);
+        float2 _678 = (_672 * 0.75) / float2(_672.x + _672.y);
+        float _679 = _678.x;
+        float _687 = _678.y;
+        float _700 = 1.0 - (_679 * smaa_first.sample(post_linear_sampler, _646.xy, level(0.0), int2(-2, 0)).y);
+        float2 _701 = float2((1.0 - (_679 * smaa_first.sample(post_linear_sampler, _646.xy, level(0.0), int2(1, 0)).y)) - (_687 * smaa_first.sample(post_linear_sampler, _646.xz, level(0.0), int2(1)).y), _700);
+        _701.y = _700 - (_687 * smaa_first.sample(post_linear_sampler, _646.xz, level(0.0), int2(-2, 1)).y);
+        float2 _710 = smaa_second.sample(post_linear_sampler, _55, level(0.0)).xy * fast::clamp(_701, float2(0.0), float2(1.0));
+        _712 = float4(_567.x, _567.y, _710.x, _710.y);
+    }
+    else
+    {
+        _712 = _567;
+    }
+    out.out_var_SV_Target = _712;
+    return out;
+}
+

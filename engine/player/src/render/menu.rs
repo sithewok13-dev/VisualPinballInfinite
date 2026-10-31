@@ -12,7 +12,7 @@ use sdl3_sys::everything::*;
 
 use super::{Renderer, non_null};
 
-const MENU_HLSL: &str = include_str!("menu.hlsl");
+const MENU_HLSL: &str = super::shaders::MENU;
 
 /// The menu's picture: RGBA with straight alpha, sRGB values, laid out as the player sees the
 /// screen, and where it goes.

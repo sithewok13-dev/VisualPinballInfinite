@@ -1,0 +1,402 @@
+#include <metal_stdlib>
+#include <simd/simd.h>
+
+using namespace metal;
+
+struct type_Effects
+{
+    float4x4 effect_m0;
+    float4x4 effect_m1;
+    float4 effect_v0;
+    float4 effect_v1;
+    float4 effect_v2;
+    float4 effect_v3;
+};
+
+constant float _56 = {};
+
+struct ao_fs_out
+{
+    float4 out_var_SV_Target [[color(0)]];
+};
+
+fragment ao_fs_out ao_fs(constant type_Effects& Effects [[buffer(0)]], texture2d<float> effect_t0 [[texture(0)]], texture2d<float> effect_t1 [[texture(1)]], texture2d<float> effect_t2 [[texture(2)]], sampler effect_s0 [[sampler(0)]], sampler effect_s1 [[sampler(1)]], sampler effect_s2 [[sampler(2)]], float4 gl_FragCoord [[position]])
+{
+    ao_fs_out out = {};
+    float4 _860;
+    do
+    {
+        float2 _81 = gl_FragCoord.xy * Effects.effect_v0.xy;
+        float2 _83 = _81 - (Effects.effect_v0.xy * 0.5);
+        float2 _84 = _83 + Effects.effect_v0.xy;
+        float4 _88 = effect_t1.sample(effect_s1, _81, level(0.0));
+        float _89 = _88.x;
+        bool _94;
+        if (_89 != 1.0)
+        {
+            _94 = _89 == 0.0;
+        }
+        else
+        {
+            _94 = true;
+        }
+        if (_94)
+        {
+            _860 = float4(1.0, 0.0, 0.0, 0.0);
+            break;
+        }
+        float _154;
+        bool _155;
+        float4 _104 = effect_t2.sample(effect_s2, ((_83 / (Effects.effect_v0.xy * 64.0)) + Effects.effect_v0.zw), level(0.0));
+        float _111 = _81.x;
+        float _112 = _81.y;
+        float _135 = Effects.effect_v0.y * Effects.effect_v0.x;
+        float3 _137 = fast::normalize(float3(Effects.effect_v0.y * (effect_t1.sample(effect_s1, float2(_111 + Effects.effect_v0.x, _112), level(0.0)).x - _89), (effect_t1.sample(effect_s1, float2(_111, _112 + Effects.effect_v0.y), level(0.0)).x - _89) * Effects.effect_v0.x, _135));
+        float _138 = (0.001000000047497451305389404296875 + (_104.z * 0.0089999996125698089599609375)) / _89;
+        float2 _139 = _104.xy;
+        float2 _140 = fract(_139);
+        float _142 = _140.y * 6.283185482025146484375;
+        float _143 = _140.x;
+        float _145 = sqrt(1.0 - _143);
+        float _146 = sqrt(_143);
+        float _149 = cos(_142) * _146;
+        float _150 = sin(_142) * _146;
+        float3 _179;
+        do
+        {
+            _154 = _137.y;
+            _155 = _154 > (-0.999989986419677734375);
+            if (_155)
+            {
+                float _162 = _137.z;
+                float _163 = (1.0 / (1.0 + _154)) * _162;
+                float _164 = _137.x;
+                _179 = float3(((_149 * (_154 + (_163 * _162))) + (_145 * _164)) - (_150 * (_163 * _164)), ((_145 * _154) - (_149 * _164)) - (_150 * _162), _56);
+                break;
+            }
+            else
+            {
+                _179 = -float3(_149, _145, _150);
+                break;
+            }
+            break; // unreachable workaround
+        } while(false);
+        float2 _182 = _81 + (_179.xy * _138);
+        float4 _186 = effect_t1.sample(effect_s1, _182, level(0.0));
+        float _187 = _186.x;
+        float _188 = _182.x;
+        float _189 = _182.y;
+        float3 _208 = float3(Effects.effect_v0.y * (effect_t1.sample(effect_s1, float2(_188 + Effects.effect_v0.x, _189), level(0.0)).x - _187), (effect_t1.sample(effect_s1, float2(_188, _189 + Effects.effect_v0.y), level(0.0)).x - _187) * Effects.effect_v0.x, _135);
+        float _209 = _89 - _187;
+        float _210 = dot(_208, _137);
+        float _220;
+        if (_209 < 0.004999999888241291046142578125)
+        {
+            _220 = 1.0 - ((_210 * _210) / dot(_208, _208));
+        }
+        else
+        {
+            _220 = 1.0;
+        }
+        float2 _226 = fract(float2(0.125, 0.625) + _139);
+        float _228 = _226.y * 6.283185482025146484375;
+        float _229 = _226.x;
+        float _231 = sqrt(1.0 - _229);
+        float _232 = sqrt(_229);
+        float _235 = cos(_228) * _232;
+        float _236 = sin(_228) * _232;
+        float3 _263;
+        do
+        {
+            if (_155)
+            {
+                float _246 = _137.z;
+                float _247 = (1.0 / (1.0 + _154)) * _246;
+                float _248 = _137.x;
+                _263 = float3(((_235 * (_154 + (_247 * _246))) + (_231 * _248)) - (_236 * (_247 * _248)), ((_231 * _154) - (_235 * _248)) - (_236 * _246), _56);
+                break;
+            }
+            else
+            {
+                _263 = -float3(_235, _231, _236);
+                break;
+            }
+            break; // unreachable workaround
+        } while(false);
+        float2 _266 = _81 + (_263.xy * _138);
+        float4 _270 = effect_t1.sample(effect_s1, _266, level(0.0));
+        float _271 = _270.x;
+        float _272 = _266.x;
+        float _273 = _266.y;
+        float3 _292 = float3(Effects.effect_v0.y * (effect_t1.sample(effect_s1, float2(_272 + Effects.effect_v0.x, _273), level(0.0)).x - _271), (effect_t1.sample(effect_s1, float2(_272, _273 + Effects.effect_v0.y), level(0.0)).x - _271) * Effects.effect_v0.x, _135);
+        float _293 = _89 - _271;
+        float _294 = dot(_292, _137);
+        float _304;
+        if (_293 < 0.004999999888241291046142578125)
+        {
+            _304 = 1.0 - ((_294 * _294) / dot(_292, _292));
+        }
+        else
+        {
+            _304 = 1.0;
+        }
+        float2 _311 = fract(float2(0.25, 1.25) + _139);
+        float _313 = _311.y * 6.283185482025146484375;
+        float _314 = _311.x;
+        float _316 = sqrt(1.0 - _314);
+        float _317 = sqrt(_314);
+        float _320 = cos(_313) * _317;
+        float _321 = sin(_313) * _317;
+        float3 _348;
+        do
+        {
+            if (_155)
+            {
+                float _331 = _137.z;
+                float _332 = (1.0 / (1.0 + _154)) * _331;
+                float _333 = _137.x;
+                _348 = float3(((_320 * (_154 + (_332 * _331))) + (_316 * _333)) - (_321 * (_332 * _333)), ((_316 * _154) - (_320 * _333)) - (_321 * _331), _56);
+                break;
+            }
+            else
+            {
+                _348 = -float3(_320, _316, _321);
+                break;
+            }
+            break; // unreachable workaround
+        } while(false);
+        float2 _351 = _81 + (_348.xy * _138);
+        float4 _355 = effect_t1.sample(effect_s1, _351, level(0.0));
+        float _356 = _355.x;
+        float _357 = _351.x;
+        float _358 = _351.y;
+        float3 _377 = float3(Effects.effect_v0.y * (effect_t1.sample(effect_s1, float2(_357 + Effects.effect_v0.x, _358), level(0.0)).x - _356), (effect_t1.sample(effect_s1, float2(_357, _358 + Effects.effect_v0.y), level(0.0)).x - _356) * Effects.effect_v0.x, _135);
+        float _378 = _89 - _356;
+        float _379 = dot(_377, _137);
+        float _389;
+        if (_378 < 0.004999999888241291046142578125)
+        {
+            _389 = 1.0 - ((_379 * _379) / dot(_377, _377));
+        }
+        else
+        {
+            _389 = 1.0;
+        }
+        float2 _396 = fract(float2(0.375, 1.875) + _139);
+        float _398 = _396.y * 6.283185482025146484375;
+        float _399 = _396.x;
+        float _401 = sqrt(1.0 - _399);
+        float _402 = sqrt(_399);
+        float _405 = cos(_398) * _402;
+        float _406 = sin(_398) * _402;
+        float3 _433;
+        do
+        {
+            if (_155)
+            {
+                float _416 = _137.z;
+                float _417 = (1.0 / (1.0 + _154)) * _416;
+                float _418 = _137.x;
+                _433 = float3(((_405 * (_154 + (_417 * _416))) + (_401 * _418)) - (_406 * (_417 * _418)), ((_401 * _154) - (_405 * _418)) - (_406 * _416), _56);
+                break;
+            }
+            else
+            {
+                _433 = -float3(_405, _401, _406);
+                break;
+            }
+            break; // unreachable workaround
+        } while(false);
+        float2 _436 = _81 + (_433.xy * _138);
+        float4 _440 = effect_t1.sample(effect_s1, _436, level(0.0));
+        float _441 = _440.x;
+        float _442 = _436.x;
+        float _443 = _436.y;
+        float3 _462 = float3(Effects.effect_v0.y * (effect_t1.sample(effect_s1, float2(_442 + Effects.effect_v0.x, _443), level(0.0)).x - _441), (effect_t1.sample(effect_s1, float2(_442, _443 + Effects.effect_v0.y), level(0.0)).x - _441) * Effects.effect_v0.x, _135);
+        float _463 = _89 - _441;
+        float _464 = dot(_462, _137);
+        float _474;
+        if (_463 < 0.004999999888241291046142578125)
+        {
+            _474 = 1.0 - ((_464 * _464) / dot(_462, _462));
+        }
+        else
+        {
+            _474 = 1.0;
+        }
+        float2 _481 = fract(float2(0.5, 2.5) + _139);
+        float _483 = _481.y * 6.283185482025146484375;
+        float _484 = _481.x;
+        float _486 = sqrt(1.0 - _484);
+        float _487 = sqrt(_484);
+        float _490 = cos(_483) * _487;
+        float _491 = sin(_483) * _487;
+        float3 _518;
+        do
+        {
+            if (_155)
+            {
+                float _501 = _137.z;
+                float _502 = (1.0 / (1.0 + _154)) * _501;
+                float _503 = _137.x;
+                _518 = float3(((_490 * (_154 + (_502 * _501))) + (_486 * _503)) - (_491 * (_502 * _503)), ((_486 * _154) - (_490 * _503)) - (_491 * _501), _56);
+                break;
+            }
+            else
+            {
+                _518 = -float3(_490, _486, _491);
+                break;
+            }
+            break; // unreachable workaround
+        } while(false);
+        float2 _521 = _81 + (_518.xy * _138);
+        float4 _525 = effect_t1.sample(effect_s1, _521, level(0.0));
+        float _526 = _525.x;
+        float _527 = _521.x;
+        float _528 = _521.y;
+        float3 _547 = float3(Effects.effect_v0.y * (effect_t1.sample(effect_s1, float2(_527 + Effects.effect_v0.x, _528), level(0.0)).x - _526), (effect_t1.sample(effect_s1, float2(_527, _528 + Effects.effect_v0.y), level(0.0)).x - _526) * Effects.effect_v0.x, _135);
+        float _548 = _89 - _526;
+        float _549 = dot(_547, _137);
+        float _559;
+        if (_548 < 0.004999999888241291046142578125)
+        {
+            _559 = 1.0 - ((_549 * _549) / dot(_547, _547));
+        }
+        else
+        {
+            _559 = 1.0;
+        }
+        float2 _566 = fract(float2(0.625, 3.125) + _139);
+        float _568 = _566.y * 6.283185482025146484375;
+        float _569 = _566.x;
+        float _571 = sqrt(1.0 - _569);
+        float _572 = sqrt(_569);
+        float _575 = cos(_568) * _572;
+        float _576 = sin(_568) * _572;
+        float3 _603;
+        do
+        {
+            if (_155)
+            {
+                float _586 = _137.z;
+                float _587 = (1.0 / (1.0 + _154)) * _586;
+                float _588 = _137.x;
+                _603 = float3(((_575 * (_154 + (_587 * _586))) + (_571 * _588)) - (_576 * (_587 * _588)), ((_571 * _154) - (_575 * _588)) - (_576 * _586), _56);
+                break;
+            }
+            else
+            {
+                _603 = -float3(_575, _571, _576);
+                break;
+            }
+            break; // unreachable workaround
+        } while(false);
+        float2 _606 = _81 + (_603.xy * _138);
+        float4 _610 = effect_t1.sample(effect_s1, _606, level(0.0));
+        float _611 = _610.x;
+        float _612 = _606.x;
+        float _613 = _606.y;
+        float3 _632 = float3(Effects.effect_v0.y * (effect_t1.sample(effect_s1, float2(_612 + Effects.effect_v0.x, _613), level(0.0)).x - _611), (effect_t1.sample(effect_s1, float2(_612, _613 + Effects.effect_v0.y), level(0.0)).x - _611) * Effects.effect_v0.x, _135);
+        float _633 = _89 - _611;
+        float _634 = dot(_632, _137);
+        float _644;
+        if (_633 < 0.004999999888241291046142578125)
+        {
+            _644 = 1.0 - ((_634 * _634) / dot(_632, _632));
+        }
+        else
+        {
+            _644 = 1.0;
+        }
+        float2 _651 = fract(float2(0.75, 3.75) + _139);
+        float _653 = _651.y * 6.283185482025146484375;
+        float _654 = _651.x;
+        float _656 = sqrt(1.0 - _654);
+        float _657 = sqrt(_654);
+        float _660 = cos(_653) * _657;
+        float _661 = sin(_653) * _657;
+        float3 _688;
+        do
+        {
+            if (_155)
+            {
+                float _671 = _137.z;
+                float _672 = (1.0 / (1.0 + _154)) * _671;
+                float _673 = _137.x;
+                _688 = float3(((_660 * (_154 + (_672 * _671))) + (_656 * _673)) - (_661 * (_672 * _673)), ((_656 * _154) - (_660 * _673)) - (_661 * _671), _56);
+                break;
+            }
+            else
+            {
+                _688 = -float3(_660, _656, _661);
+                break;
+            }
+            break; // unreachable workaround
+        } while(false);
+        float2 _691 = _81 + (_688.xy * _138);
+        float4 _695 = effect_t1.sample(effect_s1, _691, level(0.0));
+        float _696 = _695.x;
+        float _697 = _691.x;
+        float _698 = _691.y;
+        float3 _717 = float3(Effects.effect_v0.y * (effect_t1.sample(effect_s1, float2(_697 + Effects.effect_v0.x, _698), level(0.0)).x - _696), (effect_t1.sample(effect_s1, float2(_697, _698 + Effects.effect_v0.y), level(0.0)).x - _696) * Effects.effect_v0.x, _135);
+        float _718 = _89 - _696;
+        float _719 = dot(_717, _137);
+        float _729;
+        if (_718 < 0.004999999888241291046142578125)
+        {
+            _729 = 1.0 - ((_719 * _719) / dot(_717, _717));
+        }
+        else
+        {
+            _729 = 1.0;
+        }
+        float2 _736 = fract(float2(0.875, 4.375) + _139);
+        float _738 = _736.y * 6.283185482025146484375;
+        float _739 = _736.x;
+        float _741 = sqrt(1.0 - _739);
+        float _742 = sqrt(_739);
+        float _745 = cos(_738) * _742;
+        float _746 = sin(_738) * _742;
+        float3 _773;
+        do
+        {
+            if (_155)
+            {
+                float _756 = _137.z;
+                float _757 = (1.0 / (1.0 + _154)) * _756;
+                float _758 = _137.x;
+                _773 = float3(((_745 * (_154 + (_757 * _756))) + (_741 * _758)) - (_746 * (_757 * _758)), ((_741 * _154) - (_745 * _758)) - (_746 * _756), _56);
+                break;
+            }
+            else
+            {
+                _773 = -float3(_745, _741, _746);
+                break;
+            }
+            break; // unreachable workaround
+        } while(false);
+        float2 _776 = _81 + (_773.xy * _138);
+        float4 _780 = effect_t1.sample(effect_s1, _776, level(0.0));
+        float _781 = _780.x;
+        float _782 = _776.x;
+        float _783 = _776.y;
+        float3 _802 = float3(Effects.effect_v0.y * (effect_t1.sample(effect_s1, float2(_782 + Effects.effect_v0.x, _783), level(0.0)).x - _781), (effect_t1.sample(effect_s1, float2(_782, _783 + Effects.effect_v0.y), level(0.0)).x - _781) * Effects.effect_v0.x, _135);
+        float _803 = _89 - _781;
+        float _804 = dot(_802, _137);
+        float _814;
+        if (_803 < 0.004999999888241291046142578125)
+        {
+            _814 = 1.0 - ((_804 * _804) / dot(_802, _802));
+        }
+        else
+        {
+            _814 = 1.0;
+        }
+        float4 _859 = float4(((((effect_t0.sample(effect_s0, _84, level(0.0)).x + effect_t0.sample(effect_s0, _83, level(0.0)).x) + effect_t0.sample(effect_s0, float2(_84.x, _83.y), level(0.0)).x) + effect_t0.sample(effect_s0, float2(_83.x, _84.y), level(0.0)).x) * (0.25 * (1.0 - Effects.effect_v1.y))) + (fast::clamp(1.0 - ((Effects.effect_v1.x * 0.0625) * (((((((((step(0.00019999999494757503271102905273438, _209) * _220) * (1.0 - smoothstep(0.00019999999494757503271102905273438, 0.0599999986588954925537109375, _209))) + ((step(0.00019999999494757503271102905273438, _293) * _304) * (1.0 - smoothstep(0.00019999999494757503271102905273438, 0.0599999986588954925537109375, _293)))) + ((step(0.00019999999494757503271102905273438, _378) * _389) * (1.0 - smoothstep(0.00019999999494757503271102905273438, 0.0599999986588954925537109375, _378)))) + ((step(0.00019999999494757503271102905273438, _463) * _474) * (1.0 - smoothstep(0.00019999999494757503271102905273438, 0.0599999986588954925537109375, _463)))) + ((step(0.00019999999494757503271102905273438, _548) * _559) * (1.0 - smoothstep(0.00019999999494757503271102905273438, 0.0599999986588954925537109375, _548)))) + ((step(0.00019999999494757503271102905273438, _633) * _644) * (1.0 - smoothstep(0.00019999999494757503271102905273438, 0.0599999986588954925537109375, _633)))) + ((step(0.00019999999494757503271102905273438, _718) * _729) * (1.0 - smoothstep(0.00019999999494757503271102905273438, 0.0599999986588954925537109375, _718)))) + ((step(0.00019999999494757503271102905273438, _803) * _814) * (1.0 - smoothstep(0.00019999999494757503271102905273438, 0.0599999986588954925537109375, _803))))), 0.0, 1.0) * Effects.effect_v1.y), 0.0, 0.0, 0.0);
+        _860 = _859;
+        break;
+    } while(false);
+    out.out_var_SV_Target = _860;
+    return out;
+}
+

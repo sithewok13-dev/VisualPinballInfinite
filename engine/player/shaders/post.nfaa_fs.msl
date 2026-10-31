@@ -1,0 +1,146 @@
+#include <metal_stdlib>
+#include <simd/simd.h>
+
+using namespace metal;
+
+struct type_Post
+{
+    float4 w_h_height;
+    float4 post_flags;
+};
+
+struct nfaa_fs_out
+{
+    float4 out_var_SV_Target [[color(0)]];
+};
+
+fragment nfaa_fs_out nfaa_fs(constant type_Post& Post [[buffer(0)]], texture2d<float> post_source [[texture(0)]], texture2d<float> post_depth [[texture(1)]], sampler post_linear_sampler [[sampler(0)]], sampler post_point_sampler [[sampler(1)]], float4 gl_FragCoord [[position]])
+{
+    nfaa_fs_out out = {};
+    float4 _284;
+    do
+    {
+        float2 _64 = gl_FragCoord.xy * Post.w_h_height.xy;
+        float4 _68 = post_source.sample(post_linear_sampler, _64, level(0.0));
+        float3 _69 = _68.xyz;
+        bool _87;
+        do
+        {
+            if (Post.w_h_height.w == 1.0)
+            {
+                float4 _80 = post_depth.sample(post_point_sampler, _64, level(0.0));
+                float _81 = _80.x;
+                bool _86;
+                if (_81 != 1.0)
+                {
+                    _86 = _81 == 0.0;
+                }
+                else
+                {
+                    _86 = true;
+                }
+                _87 = _86;
+                break;
+            }
+            _87 = false;
+            break;
+        } while(false);
+        if (_87)
+        {
+            float3 _126;
+            if (Post.post_flags.x != 0.0)
+            {
+                float3 _96 = _69 * 0.077399380505084991455078125;
+                float3 _100 = powr(precise::max((_69 * 0.94786727428436279296875) + float3(0.0521326996386051177978515625), float3(0.0)), float3(2.400000095367431640625));
+                float _108;
+                if (_68.x <= 0.040449999272823333740234375)
+                {
+                    _108 = _96.x;
+                }
+                else
+                {
+                    _108 = _100.x;
+                }
+                float _116;
+                if (_68.y <= 0.040449999272823333740234375)
+                {
+                    _116 = _96.y;
+                }
+                else
+                {
+                    _116 = _100.y;
+                }
+                float _124;
+                if (_68.z <= 0.040449999272823333740234375)
+                {
+                    _124 = _96.z;
+                }
+                else
+                {
+                    _124 = _100.z;
+                }
+                _126 = float3(_108, _116, _124);
+            }
+            else
+            {
+                _126 = _69;
+            }
+            _284 = float4(_126, 1.0);
+            break;
+        }
+        float2 _134 = float2(0.0, Post.w_h_height.y * 4.0);
+        float2 _138 = float2(Post.w_h_height.x * 4.0, 0.0);
+        float2 _155 = _64 + _138;
+        float2 _162 = _64 - _138;
+        float _173 = dot(post_source.sample(post_linear_sampler, (_162 + _134), level(0.0)).xyz, float3(0.25, 0.5, 0.25));
+        float _180 = dot(post_source.sample(post_linear_sampler, (_162 - _134), level(0.0)).xyz, float3(0.25, 0.5, 0.25));
+        float _187 = dot(post_source.sample(post_linear_sampler, (_155 + _134), level(0.0)).xyz, float3(0.25, 0.5, 0.25));
+        float _194 = dot(post_source.sample(post_linear_sampler, (_155 - _134), level(0.0)).xyz, float3(0.25, 0.5, 0.25));
+        float2 _208 = fast::clamp(float2(((_173 + dot(post_source.sample(post_linear_sampler, (_64 - _134), level(0.0)).xyz, float3(0.25, 0.5, 0.25))) + _180) - ((_194 + dot(post_source.sample(post_linear_sampler, (_64 + _134), level(0.0)).xyz, float3(0.25, 0.5, 0.25))) + _187), ((_173 + dot(post_source.sample(post_linear_sampler, _162, level(0.0)).xyz, float3(0.25, 0.5, 0.25))) + _194) - ((_180 + dot(post_source.sample(post_linear_sampler, _155, level(0.0)).xyz, float3(0.25, 0.5, 0.25))) + _187)) * 3.0, float2(-0.75), float2(0.75)) * Post.w_h_height.xy;
+        float2 _227 = float2(_208.x, -_208.y) * 0.5;
+        float3 _242 = ((((_69 + post_source.sample(post_linear_sampler, (_64 + _208), level(0.0)).xyz) + post_source.sample(post_linear_sampler, (_64 - _208), level(0.0)).xyz) + post_source.sample(post_linear_sampler, (_64 + _227), level(0.0)).xyz) + post_source.sample(post_linear_sampler, (_64 - _227), level(0.0)).xyz) * 0.20000000298023223876953125;
+        float3 _279;
+        if (Post.post_flags.x != 0.0)
+        {
+            float3 _249 = _242 * 0.077399380505084991455078125;
+            float3 _253 = powr(precise::max((_242 * 0.94786727428436279296875) + float3(0.0521326996386051177978515625), float3(0.0)), float3(2.400000095367431640625));
+            float _261;
+            if (_242.x <= 0.040449999272823333740234375)
+            {
+                _261 = _249.x;
+            }
+            else
+            {
+                _261 = _253.x;
+            }
+            float _269;
+            if (_242.y <= 0.040449999272823333740234375)
+            {
+                _269 = _249.y;
+            }
+            else
+            {
+                _269 = _253.y;
+            }
+            float _277;
+            if (_242.z <= 0.040449999272823333740234375)
+            {
+                _277 = _249.z;
+            }
+            else
+            {
+                _277 = _253.z;
+            }
+            _279 = float3(_261, _269, _277);
+        }
+        else
+        {
+            _279 = _242;
+        }
+        _284 = float4(_279, 1.0);
+        break;
+    } while(false);
+    out.out_var_SV_Target = _284;
+    return out;
+}
+

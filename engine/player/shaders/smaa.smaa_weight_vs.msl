@@ -1,0 +1,42 @@
+#include <metal_stdlib>
+#include <simd/simd.h>
+
+using namespace metal;
+
+struct type_Post
+{
+    float4 w_h_height;
+    float4 post_flags;
+};
+
+struct type_PostVertex
+{
+    float4 smaa_vs_metrics;
+};
+
+struct smaa_weight_vs_out
+{
+    float2 out_var_TEXCOORD0 [[user(locn0)]];
+    float2 out_var_TEXCOORD1 [[user(locn1)]];
+    float4 out_var_TEXCOORD2 [[user(locn2)]];
+    float4 out_var_TEXCOORD3 [[user(locn3)]];
+    float4 out_var_TEXCOORD4 [[user(locn4)]];
+    float4 gl_Position [[position]];
+};
+
+vertex smaa_weight_vs_out smaa_weight_vs(constant type_PostVertex& PostVertex [[buffer(0)]], uint gl_VertexIndex [[vertex_id]])
+{
+    smaa_weight_vs_out out = {};
+    float2 _66 = float2(float((gl_VertexIndex << 1u) & 2u), float(gl_VertexIndex & 2u));
+    float4 _75 = _66.xyxy;
+    float4 _21 = fma(PostVertex.smaa_vs_metrics.xyxy, float4(-0.25, -0.125, 1.25, -0.125), _75);
+    float4 _22 = fma(PostVertex.smaa_vs_metrics.xyxy, float4(-0.125, -0.25, -0.125, 1.25), _75);
+    out.gl_Position = float4((_66 * float2(2.0, -2.0)) + float2(-1.0, 1.0), 0.0, 1.0);
+    out.out_var_TEXCOORD0 = _66;
+    out.out_var_TEXCOORD1 = _66 * PostVertex.smaa_vs_metrics.zw;
+    out.out_var_TEXCOORD2 = _21;
+    out.out_var_TEXCOORD3 = _22;
+    out.out_var_TEXCOORD4 = fma(PostVertex.smaa_vs_metrics.xxyy, float4(-64.0, 64.0, -64.0, 64.0), float4(_21.xz, _22.yw));
+    return out;
+}
+

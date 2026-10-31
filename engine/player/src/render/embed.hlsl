@@ -40,12 +40,18 @@ float4 embed_fill_fs(EmbedVaryings i) : SV_Target
 
 float3 embed_to_linear(float3 c)
 {
-    return c <= 0.04045 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4);
+    // a component at a time, as both FXC and DXC take it (DXC's HLSL 2021 has no vector ?:)
+    float3 lo = c / 12.92;
+    float3 hi = pow((c + 0.055) / 1.055, 2.4);
+    return float3(c.r <= 0.04045 ? lo.r : hi.r, c.g <= 0.04045 ? lo.g : hi.g, c.b <= 0.04045 ? lo.b : hi.b);
 }
 
 float3 embed_to_srgb(float3 c)
 {
-    return c <= 0.0031308 ? c * 12.92 : 1.055 * pow(c, 1.0 / 2.4) - 0.055;
+    // a component at a time, as both FXC and DXC take it (DXC's HLSL 2021 has no vector ?:)
+    float3 lo = c * 12.92;
+    float3 hi = 1.055 * pow(c, 1.0 / 2.4) - 0.055;
+    return float3(c.r <= 0.0031308 ? lo.r : hi.r, c.g <= 0.0031308 ? lo.g : hi.g, c.b <= 0.0031308 ? lo.b : hi.b);
 }
 
 float4 embed_copy_fs(EmbedVaryings i) : SV_Target

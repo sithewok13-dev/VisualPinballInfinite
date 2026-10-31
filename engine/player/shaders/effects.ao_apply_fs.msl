@@ -1,0 +1,29 @@
+#include <metal_stdlib>
+#include <simd/simd.h>
+
+using namespace metal;
+
+struct type_Effects
+{
+    float4x4 effect_m0;
+    float4x4 effect_m1;
+    float4 effect_v0;
+    float4 effect_v1;
+    float4 effect_v2;
+    float4 effect_v3;
+};
+
+struct ao_apply_fs_out
+{
+    float4 out_var_SV_Target [[color(0)]];
+};
+
+fragment ao_apply_fs_out ao_apply_fs(constant type_Effects& Effects [[buffer(0)]], texture2d<float> effect_t0 [[texture(0)]], texture2d<float> effect_t1 [[texture(1)]], sampler effect_s0 [[sampler(0)]], sampler effect_s1 [[sampler(1)]], float4 gl_FragCoord [[position]])
+{
+    ao_apply_fs_out out = {};
+    float2 _38 = gl_FragCoord.xy * Effects.effect_v0.xy;
+    float4 _42 = effect_t0.sample(effect_s0, _38, level(0.0));
+    out.out_var_SV_Target = float4(_42.xyz * effect_t1.sample(effect_s1, (_38 - (Effects.effect_v0.xy * 0.5)), level(0.0)).x, _42.w);
+    return out;
+}
+
